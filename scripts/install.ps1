@@ -6,6 +6,10 @@ param([switch]$InstalledCopy)
 
 $ErrorActionPreference = "Stop"
 $MinimumNodeMajor = 20
+$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+  throw "Run install.cmd as Administrator to install Ora as a Windows service."
+}
 
 function Write-Step($message) {
   Write-Host ""
@@ -98,26 +102,51 @@ if (Test-Path $envFile) {
 }
 
 Write-Step "Preparing persistent application data"
-$envContent = [System.IO.File]::ReadAllText($envFile)
-$databaseLine = [regex]::Match($envContent, '(?m)^DATABASE_URL="?([^"\r\n]+)"?\s*$')
-if (-not $databaseLine.Success) { throw "DATABASE_URL is missing or invalid in .env." }
-$databaseUrl = $databaseLine.Groups[1].Value
-if ($databaseUrl -match '^file:(.+)$' -and $Matches[1] -notmatch '^(?:[A-Za-z]:[\\/]|\\\\|/)') {
-  $dbDirectory = Join-Path $root "prisma"
-  New-Item -ItemType Directory -Path $dbDirectory -Force | Out-Null
-  Write-Host "Relative SQLite database path will be stored under $dbDirectory."
-} elseif ($databaseUrl -match '^file:') {
-  $dbPath = $databaseUrl.Substring(5)
-  $dbDirectory = Split-Path -Parent $dbPath
-  if ($dbDirectory) { New-Item -ItemType Directory -Path $dbDirectory -Force | Out-Null }
-  Write-Host "Using configured SQLite path: $dbPath"
-}
+$dbDirectory = Join-Path $root "prisma"
+New-Item -ItemType Directory -Path $dbDirectory -Force | Out-Null
+Write-Host "Ora database will be stored at $(Join-Path $dbDirectory 'ORA.db')."
 
-Write-Step "Creating the database schema"
+Write-Step "Building production app and database schema"
 npx prisma generate
 if ($LASTEXITCODE -ne 0) { throw "prisma generate failed." }
-npx prisma migrate deploy
-if ($LASTEXITCODE -ne 0) { throw "prisma migrate deploy failed." }
+npm run build
+if ($LASTEXITCODE -ne 0) { throw "Production build failed." }
+
+Write-Step "Installing Windows service"
+$serviceName = "OraTimeTrackingService"
+$serviceExe = Join-Path $root "$serviceName.exe"
+$serviceConfig = Join-Path $root "$serviceName.xml"
+if (-not (Get-Service -Name $serviceName -ErrorAction SilentlyContinue)) {
+  if ($InstalledCopy) { throw "Run the installer from its downloaded source folder, not the installed copy, to register the Windows service." }
+  $winSwVersion = "2.12.0"
+  $winSwUrl = "https://github.com/winsw/winsw/releases/download/v$winSwVersion/WinSW-x64.exe"
+  Invoke-WebRequest -Uri $winSwUrl -OutFile $serviceExe -TimeoutSec 60
+  $node = (Get-Command node.exe -ErrorAction Stop).Source
+  $portMatch = [regex]::Match([System.IO.File]::ReadAllText($envFile), '(?m)^PORT="?(\d+)"?\s*$')
+  $servicePort = if ($portMatch.Success) { $portMatch.Groups[1].Value } else { "33333" }
+  $xml = @"
+<service>
+  <id>$serviceName</id>
+  <name>Ora Time Tracking</name>
+  <description>Ora time tracking application</description>
+  <executable>$node</executable>
+  <arguments>node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port $servicePort</arguments>
+  <workingdirectory>$root</workingdirectory>
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="10 sec" />
+  <logpath>$root\logs</logpath>
+  <log mode="roll-by-size"><sizeThreshold>10240</sizeThreshold><keepFiles>8</keepFiles></log>
+</service>
+"@
+  [System.IO.File]::WriteAllText($serviceConfig, $xml, (New-Object System.Text.UTF8Encoding $false))
+  & $serviceExe install
+  if ($LASTEXITCODE -ne 0) { throw "Could not install $serviceName." }
+  & $serviceExe start
+  if ($LASTEXITCODE -ne 0) { throw "Could not start $serviceName." }
+} else {
+  Write-Host "$serviceName already exists; leaving the existing service configuration unchanged."
+  if ((Get-Service -Name $serviceName).Status -ne "Running") { Start-Service -Name $serviceName }
+}
 
 $portMatch = [regex]::Match([System.IO.File]::ReadAllText($envFile), '(?m)^PORT="?(\d+)"?\s*$')
 $port = if ($portMatch.Success) { $portMatch.Groups[1].Value } else { "33333" }
@@ -125,6 +154,6 @@ $port = if ($portMatch.Success) { $portMatch.Groups[1].Value } else { "33333" }
 Write-Host ""
 Write-Host "Ora is ready." -ForegroundColor Green
 Write-Host "Install folder: $root"
-Write-Host "Start it with:  npm run dev"
 Write-Host "Then open:      http://localhost:$port"
 Write-Host "First visit:    http://localhost:$port/setup"
+Write-Host "Windows service: $serviceName (installed and started)."

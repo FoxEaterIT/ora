@@ -24,6 +24,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
+  const [update, setUpdate] = useState<{ currentVersion: string; latestVersion: string; releaseUrl: string } | null>(null);
   const brandLogo = appLogoForTheme(theme);
 
   useEffect(() => {
@@ -40,6 +41,20 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
     localStorage.setItem("ora-theme", saved);
     localStorage.setItem("ora-light-theme", savedLight);
   }, []);
+
+  useEffect(() => {
+    if (!manager) return;
+    let active = true;
+    fetch("/api/version", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (active && data?.updateAvailable && typeof data.latestVersion === "string" && typeof data.releaseUrl === "string") {
+          setUpdate({ currentVersion: data.currentVersion, latestVersion: data.latestVersion, releaseUrl: data.releaseUrl });
+        }
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [manager]);
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -211,6 +226,12 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
         </div>
       )}
 
+      {update && (
+        <div role="status" className="mx-auto mt-4 flex max-w-[1400px] flex-wrap items-center justify-between gap-3 rounded-xl border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-ink sm:mx-6 lg:mx-auto">
+          <p>{messages.updateAvailable.replace("{version}", update.latestVersion).replace("{current}", update.currentVersion)}</p>
+          <a href={update.releaseUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand underline underline-offset-2">{messages.viewRelease}</a>
+        </div>
+      )}
       <main className="mx-auto min-w-0 max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</main>
     </div>
   );

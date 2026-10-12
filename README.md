@@ -4,7 +4,7 @@ Track hours on projects and activities, organize people and teams, and export re
 
 `Next.js 15` · `React 19` · `TypeScript` · `Tailwind CSS 4` · `Prisma + SQLite` · `MIT`
 
-**Jump to:** [At a glance](#at-a-glance) · [Features](#features) · [Roles](#roles) · [Quick start](#quick-start) · [Windows installation](#windows-installer) · [Production hosting](#production-hosting-and-reverse-proxy) · [Configuration](#configuration) · [Reports](#reports) · [Languages](#languages) · [Data](#data-to-remember) · [Roadmap](#roadmap)
+**Jump to:** [At a glance](#at-a-glance) · [Features](#features) · [Roles](#roles) · [Quick start](#quick-start) · [Windows installation](#windows-installer) · [Production hosting](#production-hosting-and-reverse-proxy) · [Releases](#releases-and-update-notices) · [Configuration](#configuration) · [Reports](#reports) · [Languages](#languages) · [Data](#data-to-remember) · [Roadmap](#roadmap)
 
 ---
 
@@ -28,6 +28,7 @@ Track hours on projects and activities, organize people and teams, and export re
 | **Interface** | Fixed header, side navigation, account menu, themed fields, selects, checkboxes, and date pickers. |
 | **Branding** | Name, tagline, description, light and dark logos, and available themes come from `.env`. |
 | **Languages** | English, Italian, and Spanish, chosen from the browser and changeable in the header. |
+| **Updates** | Owners and admins see a notice when a newer stable GitHub release is available. An administrator can run the separate Windows update runner; service control and restart remain manual. |
 
 ### Light themes
 
@@ -62,40 +63,35 @@ The palette control is shown only in light mode. The sun and moon control switch
 
 ### Windows installer
 
-Download or clone the project, then double-click **`install.cmd`** in the project folder.
+Download or clone the project, then run **`install.cmd` as Administrator** in the project folder; administrator privileges are required to register the Windows service.
 
 | Step | What the installer does |
 |---|---|
-| Install location | Copies the project to `%APPDATA%\Ora` (the current user's roaming AppData folder). |
+| Install location | Copies the project to `%APPDATA%\Ora` (the current user's roaming AppData folder). Run `install.cmd` as Administrator to register the machine-wide Windows service. |
 | Node.js | Uses Node.js 20 or newer. If it is missing, installs the current LTS with `winget`. |
 | Packages | Runs `npm install`. |
 | Configuration | Creates `.env` from `.env.example` and replaces `AUTH_SECRET` with a random value. An existing `.env` in the install folder is never overwritten. |
-| Database | Generates the Prisma client and applies the versioned migrations. By default, SQLite is stored under the install folder's `prisma` directory. |
-| What it does not do | Does not build production assets, start Ora, create a Windows service, or configure IIS/a reverse proxy. See [Production hosting](#production-hosting-and-reverse-proxy). |
+| Database | Initializes the fixed SQLite database at `%APPDATA%\Ora\prisma\ORA.db` and applies versioned migrations. The path is not configurable by users. |
+| Service | Creates the automatic `OraTimeTrackingService` Windows service. Run the installer as Administrator. |
+| What it does not do | Does not configure IIS/a reverse proxy. See [Production hosting](#production-hosting-and-reverse-proxy). |
 
-Owner email and password stay empty, so the first start uses the one-time `/setup` page. The installer does **not** start Ora or register it as a service. To try the app interactively, open PowerShell in `%APPDATA%\Ora` and run:
-
-```powershell
-npm run dev
-```
-
-Then open [http://localhost:33333](http://localhost:33333), followed by [http://localhost:33333/setup](http://localhost:33333/setup). Stop the development server with `Ctrl+C`. Change the listening port by editing `PORT` in `%APPDATA%\Ora\.env` before starting Ora.
+Owner email and password stay empty, so the first start uses the one-time `/setup` page. The installer creates and starts the `OraTimeTrackingService` Windows service automatically. Then open [http://localhost:33333](http://localhost:33333), followed by [http://localhost:33333/setup](http://localhost:33333/setup). Change the listening port by editing `PORT` in `%APPDATA%\Ora\.env` and restarting the service. The service runs Ora in production mode.
 
 ### Production hosting and reverse proxy
 
-The installer is only a **prerequisite and database setup tool**. It does not build or launch the production app, install a Windows service, configure IIS, open firewall ports, or set up HTTPS. Those tasks belong to whoever administers the target server.
+The installer builds the production app and registers/starts the `OraTimeTrackingService` Windows service. It does not configure IIS, open firewall ports, or set up HTTPS; those tasks belong to whoever administers the target server.
 
 | Responsibility | What the server administrator must arrange |
 |---|---|
-| Build | From `%APPDATA%\Ora`, configure `.env` first, then run `npm run build` once. Rebuild after changing any `NEXT_PUBLIC_*` value. |
-| Run | Run `npm start` to serve the production build. Keep this process alive and arrange automatic startup/recovery with a process manager or Windows service of your choice; neither is installed by Ora. |
+| Build and database | The installer configures `.env`, builds production assets, and applies migrations to the fixed `prisma/ORA.db`. Rebuild after changing any `NEXT_PUBLIC_*` value. |
+| Windows service | The installer creates and starts `OraTimeTrackingService`, configured for automatic startup and recovery. |
 | Network binding | Ora listens on `127.0.0.1` at `PORT` (default `33333`). It is intentionally not directly exposed to the network. |
 | Reverse proxy | Configure your chosen reverse proxy to forward requests to `http://127.0.0.1:<PORT>`. For IIS, administrators typically install **IIS URL Rewrite** and **Application Request Routing (ARR)**, enable proxying, then configure a site, HTTPS binding/certificate, and rewrite rule to the local Ora address. IIS setup is not included in the installer. |
 | Public URL | Set `APP_ORIGIN` to the public HTTPS URL (for example, `https://ora.example.com`). The proxy should preserve the public host and HTTPS information when forwarding requests. |
 | Files and identity | Run the process under a Windows account that can read the install files and write to the configured SQLite database and the app directory (the one-time setup code is written there). |
-| Database | Use one app instance and persistent storage. The default database is under `%APPDATA%\Ora\prisma`; if a service runs as another account, `%APPDATA%` points to that account's profile. Set `DATABASE_URL` to the desired persistent SQLite path if needed. |
+| Database | One app instance and persistent storage. The database is fixed at `%APPDATA%\Ora\prisma\ORA.db`; it is not configurable by users. A service running under another account must use the same installation directory. |
 
-**Quick IIS checklist:** install IIS and its URL Rewrite/ARR modules; enable ARR proxying; create the IIS site and bind the hostname with an HTTPS certificate; add a reverse-proxy rewrite rule to `http://127.0.0.1:33333` (or your configured port); set `APP_ORIGIN` to the public HTTPS URL; start Ora with `npm start` and verify the site through IIS. Consult Microsoft IIS documentation for the exact module installation and rule steps for your Windows Server version.
+**Quick IIS checklist:** install IIS and its URL Rewrite/ARR modules; enable ARR proxying; create the IIS site and bind the hostname with an HTTPS certificate; add a reverse-proxy rewrite rule to `http://127.0.0.1:33333` (or your configured port); set `APP_ORIGIN` to the public HTTPS URL; start `OraTimeTrackingService` and verify the site through IIS. Consult Microsoft IIS documentation for the exact module installation and rule steps for your Windows Server version.
 
 After the first-time `/setup`, keep the app behind HTTPS and do not expose its local listening port directly to untrusted networks.
 
@@ -128,7 +124,7 @@ SQLite is intended for **one app instance on one machine**, with the database fi
 
 | Setting | Default or note |
 |---|---|
-| `DATABASE_URL` | `file:./dev.db`, resolved by Prisma under the install folder's `prisma` directory by default. Set another SQLite file URL to use a different persistent location. |
+| SQLite database | Fixed path: `prisma/ORA.db`. The database path is not configurable by users. The updater retains the previous database as `prisma/ORA_Backup.db`. |
 | Database files | Local `*.db` files and journals stay out of Git. Do not commit dumps. |
 | Schema | Versioned migrations create an empty schema. |
 
@@ -200,6 +196,26 @@ The header stays visible while you move around. The menu button opens a side pan
 
 ---
 
+## Releases and update notices
+
+Ora checks GitHub Releases for the latest published **stable** version. Owners and admins see a notice in the app when a newer version is available, with a link to its release page. Standard users do not see the notice. The check is best-effort, runs in the background, and is cached in memory for up to 12 hours; if GitHub is unavailable, Ora continues normally without a notice. The notice is informational: it does not download an update automatically.
+
+The Windows runner `scripts/update.ps1` downloads a published release and prepares dependencies, production assets, and a migrated copy of `prisma/ORA.db` while the current service stays online. When staging is ready, it stops `OraTimeTrackingService`, creates `prisma/ORA_Backup.db` and a versioned application/database backup, switches to the migrated database and new app files, then starts the service again. IIS remains administrator-managed. Verify the service and site after each update, and retain backups according to your recovery policy. The database location is fixed and is not user-configurable.
+
+To publish a version, set the semantic version in `package.json` (for example, `1.2.0`), commit and push the change, create a Git tag such as `v1.2.0`, and publish a stable GitHub Release for that tag. The GitHub Actions workflow attaches `ora-v1.2.0.zip`; the external runner requires that asset and verifies the GitHub-provided SHA-256 digest. Drafts and prereleases are not used for update notices.
+
+Run the updater from an elevated PowerShell window, replacing the path with the installation directory. It controls the service automatically:
+
+```powershell
+.\scripts\update.ps1 -InstallPath "$env:APPDATA\Ora"
+```
+
+The updater requires administrator privileges and the installed `OraTimeTrackingService`. Keep an independent verified backup of `ORA.db` and `.env` before use. It restarts the service after a successful update or a handled failure; it does not configure IIS. Verify the site and retain `ORA_Backup.db` and the versioned update backup until you are satisfied with recovery.
+
+> The checker compares the installed package version with the latest stable release. Keep `package.json` aligned with the deployed version, and include clear backup and upgrade instructions in every release.
+
+---
+
 ## Configuration
 
 Copy `.env.example` to `.env`. Public values use the `NEXT_PUBLIC_` prefix and are **embedded in the bundle**. Set them before you start or build, and rebuild after every change.
@@ -240,7 +256,7 @@ Logos must live in `public/custom/`. External URLs and any other path are reject
 | `SESSION_DURATION_DAYS` | Integer from 1 to 365. Invalid numbers fail explicitly. |
 | `PASSWORD_HASH_ROUNDS` | Integer from 10 to 15. Invalid numbers fail explicitly. |
 | `OWNER_EMAIL` and `OWNER_PASSWORD` | Both set, or both empty. Production rejects a placeholder secret and a half-configured owner. |
-| `DATABASE_URL` | SQLite file URL. Defaults to a database under `%APPDATA%\Ora\prisma`. See [Quick start](#quick-start). |
+| Database path | Not configurable. Ora always stores SQLite in `prisma/ORA.db` under the installation folder. |
 | `PORT` | Local HTTP listen port (default `33333`); use this as the reverse-proxy target port. |
 
 ---
