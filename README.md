@@ -4,7 +4,7 @@ Track hours on projects and activities, organize people and teams, and export re
 
 `Next.js 15` · `React 19` · `TypeScript` · `Tailwind CSS 4` · `Prisma + SQLite` · `MIT`
 
-**Jump to:** [At a glance](#at-a-glance) · [Features](#features) · [Roles](#roles) · [Quick start](#quick-start) · [Using Ora](#using-ora) · [Configuration](#configuration) · [Reports](#reports) · [Languages](#languages) · [Data](#data-to-remember) · [Roadmap](#roadmap)
+**Jump to:** [At a glance](#at-a-glance) · [Features](#features) · [Roles](#roles) · [Quick start](#quick-start) · [Windows installation](#windows-installer) · [Production hosting](#production-hosting-and-reverse-proxy) · [Configuration](#configuration) · [Reports](#reports) · [Languages](#languages) · [Data](#data-to-remember) · [Roadmap](#roadmap)
 
 ---
 
@@ -60,7 +60,48 @@ The palette control is shown only in light mode. The sun and moon control switch
 
 ## Quick start
 
-**Prerequisites:** Node.js and npm.
+### Windows installer
+
+Download or clone the project, then double-click **`install.cmd`** in the project folder.
+
+| Step | What the installer does |
+|---|---|
+| Install location | Copies the project to `%APPDATA%\Ora` (the current user's roaming AppData folder). |
+| Node.js | Uses Node.js 20 or newer. If it is missing, installs the current LTS with `winget`. |
+| Packages | Runs `npm install`. |
+| Configuration | Creates `.env` from `.env.example` and replaces `AUTH_SECRET` with a random value. An existing `.env` in the install folder is never overwritten. |
+| Database | Generates the Prisma client and applies the versioned migrations. By default, SQLite is stored under the install folder's `prisma` directory. |
+| What it does not do | Does not build production assets, start Ora, create a Windows service, or configure IIS/a reverse proxy. See [Production hosting](#production-hosting-and-reverse-proxy). |
+
+Owner email and password stay empty, so the first start uses the one-time `/setup` page. The installer does **not** start Ora or register it as a service. To try the app interactively, open PowerShell in `%APPDATA%\Ora` and run:
+
+```powershell
+npm run dev
+```
+
+Then open [http://localhost:33333](http://localhost:33333), followed by [http://localhost:33333/setup](http://localhost:33333/setup). Stop the development server with `Ctrl+C`. Change the listening port by editing `PORT` in `%APPDATA%\Ora\.env` before starting Ora.
+
+### Production hosting and reverse proxy
+
+The installer is only a **prerequisite and database setup tool**. It does not build or launch the production app, install a Windows service, configure IIS, open firewall ports, or set up HTTPS. Those tasks belong to whoever administers the target server.
+
+| Responsibility | What the server administrator must arrange |
+|---|---|
+| Build | From `%APPDATA%\Ora`, configure `.env` first, then run `npm run build` once. Rebuild after changing any `NEXT_PUBLIC_*` value. |
+| Run | Run `npm start` to serve the production build. Keep this process alive and arrange automatic startup/recovery with a process manager or Windows service of your choice; neither is installed by Ora. |
+| Network binding | Ora listens on `127.0.0.1` at `PORT` (default `33333`). It is intentionally not directly exposed to the network. |
+| Reverse proxy | Configure your chosen reverse proxy to forward requests to `http://127.0.0.1:<PORT>`. For IIS, administrators typically install **IIS URL Rewrite** and **Application Request Routing (ARR)**, enable proxying, then configure a site, HTTPS binding/certificate, and rewrite rule to the local Ora address. IIS setup is not included in the installer. |
+| Public URL | Set `APP_ORIGIN` to the public HTTPS URL (for example, `https://ora.example.com`). The proxy should preserve the public host and HTTPS information when forwarding requests. |
+| Files and identity | Run the process under a Windows account that can read the install files and write to the configured SQLite database and the app directory (the one-time setup code is written there). |
+| Database | Use one app instance and persistent storage. The default database is under `%APPDATA%\Ora\prisma`; if a service runs as another account, `%APPDATA%` points to that account's profile. Set `DATABASE_URL` to the desired persistent SQLite path if needed. |
+
+**Quick IIS checklist:** install IIS and its URL Rewrite/ARR modules; enable ARR proxying; create the IIS site and bind the hostname with an HTTPS certificate; add a reverse-proxy rewrite rule to `http://127.0.0.1:33333` (or your configured port); set `APP_ORIGIN` to the public HTTPS URL; start Ora with `npm start` and verify the site through IIS. Consult Microsoft IIS documentation for the exact module installation and rule steps for your Windows Server version.
+
+After the first-time `/setup`, keep the app behind HTTPS and do not expose its local listening port directly to untrusted networks.
+
+### Manual setup
+
+**Prerequisites:** Node.js 20 or newer, and npm.
 
 ```bash
 npm install
@@ -68,7 +109,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:33333](http://localhost:33333) by default (or the port configured in `.env`).
 
 ### Choose how the owner is created
 
@@ -87,7 +128,7 @@ SQLite is intended for **one app instance on one machine**, with the database fi
 
 | Setting | Default or note |
 |---|---|
-| `DATABASE_URL` | `file:./dev.db`, resolved by Prisma as `prisma/dev.db`. |
+| `DATABASE_URL` | `file:./dev.db`, resolved by Prisma under the install folder's `prisma` directory by default. Set another SQLite file URL to use a different persistent location. |
 | Database files | Local `*.db` files and journals stay out of Git. Do not commit dumps. |
 | Schema | Versioned migrations create an empty schema. |
 
@@ -172,7 +213,8 @@ Copy `.env.example` to `.env`. Public values use the `NEXT_PUBLIC_` prefix and a
 | `NEXT_PUBLIC_APP_DESCRIPTION` | Description and metadata. |
 | `NEXT_PUBLIC_APP_LOGO_LIGHT` | Light-mode logo, only as `/custom/...`. |
 | `NEXT_PUBLIC_APP_LOGO_DARK` | Dark-mode logo, only as `/custom/...`. |
-| `APP_ORIGIN` | Public base URL of this installation. |
+| `APP_ORIGIN` | Public base URL of this installation. Defaults to `http://localhost:<PORT>`. Set it to the public HTTPS URL when hosted behind a reverse proxy (for example, `https://ora.example.com`). |
+| `PORT` | Local HTTP listen port for the app. Defaults to `33333`; reverse proxies can forward to `http://127.0.0.1:<PORT>`. |
 
 Logos must live in `public/custom/`. External URLs and any other path are rejected. If only one logo is set, it is used in both modes. With neither, Ora shows the text brand. `public/custom/` is not in Git: add the files on each installation.
 
@@ -198,7 +240,8 @@ Logos must live in `public/custom/`. External URLs and any other path are reject
 | `SESSION_DURATION_DAYS` | Integer from 1 to 365. Invalid numbers fail explicitly. |
 | `PASSWORD_HASH_ROUNDS` | Integer from 10 to 15. Invalid numbers fail explicitly. |
 | `OWNER_EMAIL` and `OWNER_PASSWORD` | Both set, or both empty. Production rejects a placeholder secret and a half-configured owner. |
-| `DATABASE_URL` | SQLite file URL. See [Quick start](#quick-start). |
+| `DATABASE_URL` | SQLite file URL. Defaults to a database under `%APPDATA%\Ora\prisma`. See [Quick start](#quick-start). |
+| `PORT` | Local HTTP listen port (default `33333`); use this as the reverse-proxy target port. |
 
 ---
 
