@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbopack --hostname 127.0.0.1",
     "build": "prisma migrate deploy && next build --turbopack",
-    "start": "prisma migrate deploy && next start",
+    "start": "prisma migrate deploy && next start --hostname 127.0.0.1",
     "lint": "eslint",
     "check:i18n": "tsx src/i18n/check-messages.ts"
   },
