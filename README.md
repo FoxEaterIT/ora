@@ -73,6 +73,7 @@ Download or clone the project, then run **`install.cmd` as Administrator** in th
 | Configuration | Creates `.env` from `.env.example` and replaces `AUTH_SECRET` with a random value. An existing `.env` in the install folder is never overwritten. |
 | Database | Initializes the fixed SQLite database at `%APPDATA%\Ora\prisma\ORA.db` and applies versioned migrations. The path is not configurable by users. |
 | Service | Creates the automatic `OraTimeTrackingService` Windows service. Run the installer as Administrator. |
+| Uninstall | `uninstall.cmd` removes the service and app after exporting project/team/user inventories to Excel; choose whether to retain app data. |
 | What it does not do | Does not configure IIS/a reverse proxy. See [Production hosting](#production-hosting-and-reverse-proxy). |
 
 Owner email and password stay empty, so the first start uses the one-time `/setup` page. The installer creates and starts the `OraTimeTrackingService` Windows service automatically. Then open [http://localhost:33333](http://localhost:33333), followed by [http://localhost:33333/setup](http://localhost:33333/setup). Change the listening port by editing `PORT` in `%APPDATA%\Ora\.env` and restarting the service. The service runs Ora in production mode.
@@ -195,6 +196,15 @@ The header stays visible while you move around. The menu button opens a side pan
 | **Reports** | View and export workspace data (owner and admin). |
 
 ---
+
+## Uninstalling Ora
+
+Run `uninstall.cmd` as Administrator from the downloaded installer folder. The uninstaller stops and removes `OraTimeTrackingService`, exports complete project, team, and user inventories to three Excel workbooks in a timestamped folder under Documents, then asks whether to retain the application data. The user export contains names, emails, roles, team/project memberships, and creation dates; it never includes password hashes.
+
+- **Keep data:** the app is removed, while `.env`, `ORA.db`, `ORA_Backup.db` (if present), and custom logos are copied beside the Excel exports.
+- **Delete data:** the app and its configuration/database/logo data are deleted after Excel exports complete.
+
+> The uninstaller does not remove Node.js or configure/alter IIS. If the database is missing, the Excel export fails, the service cannot be removed, or preserved database verification fails, it stops rather than deleting the installation.
 
 ## Releases and update notices
 
