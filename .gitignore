@@ -17,6 +17,13 @@
 /.next/
 /out/
 
+# Local databases and one-time setup credential (never commit installation data)
+/prisma/*.db
+/owner-setup-code.txt
+
+# Custom branding assets (logos must be placed in public/custom)
+/public/custom/
+
 # production
 /build
 
@@ -31,7 +38,7 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
 
 # vercel
 .vercel

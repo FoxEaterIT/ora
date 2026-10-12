@@ -1,0 +1,214 @@
+"use client";
+
+import { FormEvent, useEffect, useState } from "react";
+import { KeyRound, Plus, Save, Trash2 } from "lucide-react";
+import { Button, Card, Empty, ErrorText, Field, Input, PageHeader, Select } from "@/components/ui";
+import { useI18n } from "@/i18n/provider";
+
+type Team = { id: string; name: string };
+type Person = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  name: string;
+  email: string;
+  role: "OWNER" | "ADMIN" | "USER";
+  passwordSet: boolean;
+  memberships?: { team: Team }[];
+};
+
+const emptyForm = { firstName: "", lastName: "", email: "", role: "USER", teamId: "" };
+
+/** Owner/admin user directory and account provisioning form. */
+export default function PeoplePage() {
+  const { messages } = useI18n();
+  const t = messages.peoplePage;
+  const [people, setPeople] = useState<Person[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [me, setMe] = useState<Person | null>(null);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState(emptyForm);
+  const [emailDrafts, setEmailDrafts] = useState<Record<string, string>>({});
+
+  async function load() {
+    const [usersResponse, sessionResponse, teamsResponse] = await Promise.all([
+      fetch("/api/users"),
+      fetch("/api/me"),
+      fetch("/api/teams"),
+    ]);
+    const [usersData, sessionData, teamsData] = await Promise.all([
+      usersResponse.json(), sessionResponse.json(), teamsResponse.json(),
+    ]);
+    setPeople(usersData.users ?? []);
+    setEmailDrafts(Object.fromEntries((usersData.users ?? []).map((person: Person) => [person.id, person.email])));
+    setMe(sessionData.user);
+    setTeams(teamsData.teams ?? []);
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const owner = me?.role === "OWNER";
+
+  async function create(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+
+    const response = await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.error ?? t.createFailed);
+      return;
+    }
+
+    setOpen(false);
+    setForm(emptyForm);
+    await load();
+  }
+
+  async function updatePerson(person: Person, changes: { role?: string; email?: string; resetPassword?: true }) {
+    const response = await fetch(`/api/users/${person.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(changes),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      alert(data.error);
+      return;
+    }
+    await load();
+  }
+
+  async function setRole(person: Person, role: string) {
+    await updatePerson(person, { role });
+  }
+
+  async function saveEmail(person: Person) {
+    const email = emailDrafts[person.id]?.trim();
+    if (!email || email.toLowerCase() === person.email.toLowerCase()) return;
+    await updatePerson(person, { email });
+  }
+
+  async function resetPassword(person: Person) {
+    if (!confirm(`${t.resetConfirm} ${person.name}${t.resetSuffix}`)) return;
+    await updatePerson(person, { resetPassword: true });
+  }
+
+  async function remove(person: Person) {
+    if (!confirm(`${t.deleteConfirm} ${person.name}${t.deleteSuffix}`)) return;
+    const response = await fetch(`/api/users/${person.id}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!response.ok) {
+      alert(data.error);
+      return;
+    }
+    await load();
+  }
+
+  return (
+    <div>
+      <PageHeader
+        title={t.title}
+        subtitle={t.subtitle}
+        action={<Button onClick={() => setOpen((value) => !value)}><Plus size={16} /> {t.newPerson}</Button>}
+      />
+
+      {open ? (
+        <Card className="mb-5">
+          <form onSubmit={create} className="grid gap-4 md:grid-cols-2">
+            <Field label={t.firstName}>
+              <Input required autoComplete="given-name" value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} />
+            </Field>
+            <Field label={t.lastName}>
+              <Input required autoComplete="family-name" value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} />
+            </Field>
+            <Field label={t.email}>
+              <Input required type="email" autoComplete="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+            </Field>
+            <Field label={t.role}>
+              <Select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })} disabled={!owner}>
+                <option value="USER">{messages.role.USER}</option>
+                {owner ? <option value="ADMIN">{messages.role.ADMIN}</option> : null}
+              </Select>
+            </Field>
+            <Field label={t.team}>
+              <Select value={form.teamId} onChange={(event) => setForm({ ...form, teamId: event.target.value })}>
+                <option value="">{t.noTeam}</option>
+                {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+              </Select>
+            </Field>
+            <p className="self-end text-xs text-muted">{t.passwordFirstLogin}</p>
+            <div className="flex items-center gap-3 md:col-span-2">
+              <Button type="submit">{t.createAccount}</Button>
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>{t.cancel}</Button>
+              <ErrorText>{error}</ErrorText>
+            </div>
+          </form>
+        </Card>
+      ) : null}
+
+      {people.length === 0 ? <Empty>{t.none}</Empty> : (
+        <div className="overflow-hidden rounded-3xl border border-line bg-surface">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-line text-xs uppercase tracking-wide text-muted">
+              <tr>
+                <th className="px-4 py-3 font-medium">{t.name}</th>
+                <th className="px-4 py-3 font-medium">{t.email}</th>
+                <th className="px-4 py-3 font-medium">{t.team}</th>
+                <th className="px-4 py-3 font-medium">{t.role}</th>
+                <th className="px-4 py-3 font-medium">{t.access}</th>
+                <th className="px-4 py-3 font-medium">{t.actions}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {people.map((person) => (
+                <tr key={person.id} className="border-b border-line last:border-0">
+                  <td className="px-4 py-3 font-medium">{person.name}</td>
+                  <td className="px-4 py-3 text-muted">
+                    {owner && person.role !== "OWNER" ? (
+                      <div className="flex min-w-56 items-center gap-2">
+                        <Input type="email" aria-label={`${t.emailOf} ${person.name}`} value={emailDrafts[person.id] ?? person.email} onChange={(event) => setEmailDrafts({ ...emailDrafts, [person.id]: event.target.value })} />
+                        {emailDrafts[person.id] !== person.email && <Button variant="ghost" onClick={() => void saveEmail(person)} aria-label={`${t.saveEmail} ${person.name}`}><Save size={15} /></Button>}
+                      </div>
+                    ) : person.email}
+                  </td>
+                  <td className="px-4 py-3 text-muted">{person.memberships?.map((membership) => membership.team.name).join(", ") || "—"}</td>
+                  <td className="px-4 py-3">
+                    {owner && person.role !== "OWNER" ? (
+                      <Select value={person.role} onChange={(event) => setRole(person, event.target.value)} className="w-32">
+                        <option value="USER">{messages.role.USER}</option><option value="ADMIN">{messages.role.ADMIN}</option>
+                      </Select>
+                    ) : <span className="rounded-full bg-bg px-2 py-1 text-xs">{messages.role[person.role]}</span>}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted">{person.passwordSet ? t.activated : t.toActivate}</td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-1">
+                      {owner && person.role !== "OWNER" && (
+                        <button onClick={() => void resetPassword(person)} className="rounded-lg p-2 text-muted hover:text-ink" aria-label={`${t.forceReset} ${person.name}`} title={t.forceResetTitle}>
+                          <KeyRound size={15} />
+                        </button>
+                      )}
+                      {person.role !== "OWNER" && person.id !== me?.id ? (
+                        <button onClick={() => remove(person)} className="rounded-lg p-2 text-muted hover:text-danger" aria-label={`${t.deletePerson} ${person.name}`}>
+                          <Trash2 size={15} />
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
