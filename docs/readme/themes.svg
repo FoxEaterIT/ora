@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="92" viewBox="0 0 1100 92" role="img" aria-label="Ora theme colors">
+  <rect width="1100" height="92" rx="18" fill="#f8fafc"/>
+  <circle cx="46" cy="46" r="18" fill="#5b5bd6"/>
+  <text x="76" y="53" fill="#1e1b4b" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="650">Default</text>
+  <circle cx="250" cy="46" r="18" fill="#2878c7"/>
+  <text x="280" y="53" fill="#1e3a8a" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="650">Blue</text>
+  <circle cx="420" cy="46" r="18" fill="#318454"/>
+  <text x="450" y="53" fill="#14532d" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="650">Green</text>
+  <circle cx="620" cy="46" r="18" fill="#8051b5"/>
+  <text x="650" y="53" fill="#581c87" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="650">Purple</text>
+  <circle cx="830" cy="46" r="18" fill="#c96c2c"/>
+  <text x="860" y="53" fill="#7c2d12" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="650">Orange</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="280" viewBox="0 0 640 280" role="img" aria-label="Track">
+  <rect width="640" height="280" rx="28" fill="#eef2ff"/>
+  <rect x="0" y="0" width="640" height="12" rx="6" fill="#5b5bd6"/>
+  <circle cx="56" cy="78" r="26" fill="#5b5bd6"/>
+  <path d="M56 62v18l12 8" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="100" y="88" fill="#312e81" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="32" font-weight="700">Track</text>
+  <text x="40" y="150" fill="#3730a3" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="24">Start and stop a timer</text>
+  <text x="40" y="188" fill="#3730a3" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="24">on an assigned project,</text>
+  <text x="40" y="226" fill="#3730a3" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="24">then review your own hours.</text>
+</svg>

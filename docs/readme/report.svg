@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="280" viewBox="0 0 640 280" role="img" aria-label="Report">
+  <rect width="640" height="280" rx="28" fill="#fff7ed"/>
+  <rect x="0" y="0" width="640" height="12" rx="6" fill="#d97706"/>
+  <circle cx="56" cy="78" r="26" fill="#d97706"/>
+  <path d="M46 84V70h8l6 8 6-8h8v14" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="100" y="88" fill="#7c2d12" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="32" font-weight="700">Report</text>
+  <text x="40" y="150" fill="#9a3412" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="24">Filter, group, and export</text>
+  <text x="40" y="188" fill="#9a3412" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="24">CSV or Excel in the</text>
+  <text x="40" y="226" fill="#9a3412" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="24">selected language.</text>
+</svg>

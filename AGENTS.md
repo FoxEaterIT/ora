@@ -17,7 +17,7 @@ Ora is a time-tracking app for projects, teams, and people. Stack: Next.js 15 Ap
 - `src/i18n/messages.ts` contains the typed English, Italian, and Spanish dictionaries, locale normalization, and English fallback. `src/i18n/provider.tsx` resolves browser preference on initial client mount and persists the selection in `ora-locale`; add translations to every dictionary and run `npm run check:i18n`.
 - `src/lib/`: auth, access control, Prisma, and domain utilities. Initial owner setup is in `src/app/setup/` and `/api/setup`; when owner credentials are not configured, `ensureOwner` creates a temporary account without a password and generates `owner-setup-code.txt` in the app root, which is consumed and removed by the one-time setup flow.
 - `prisma/schema.prisma`: data model; migrations are in `prisma/migrations/`. Local SQLite databases (`prisma/*.db`, journal files, and SQLite variants) are excluded from Git; an empty schema is created by applying versioned migrations.
-- `README.md`: user and product documentation; keep it up to date.
+- `README.md`: user and product documentation; keep it up to date. From this point through the end of the project, keep it modern, scannable, and visual using **pure Markdown** plus local images: a short intro, a jump list, GitHub-style tables, blockquote callouts, fenced code, and colored cards. Color belongs in image files under `docs/readme/` (SVG), referenced with Markdown image syntax such as `![Track](docs/readme/track.svg)`. Do not use raw HTML (`<table>`, `<td>`, `<p align>`, `<img>`, `<br>`, `<div>`): the in-app viewer prints those tags as text. Do not revert it to long unbroken prose. Preserve accuracy when restyling; user-facing facts stay in the README, developer conventions stay here.
 
 ## Development conventions
 
@@ -63,6 +63,8 @@ For database changes, review migrations and follow the user's instructions befor
 
 For each implementation change, update **both `README.md`** (user guide, features, and user-facing roadmap) **and this `AGENTS.md`** (structure, conventions, or relevant development notes). If a change does not affect their content, confirm that both documents remain accurate; still update at least the history section below to maintain the ongoing record.
 
+When updating `README.md`, follow the presentation rule in **Structure**: pure Markdown, a short intro, jump links, tables, blockquote callouts, and colored cards stored as SVG in `docs/readme/`. Never insert raw HTML. Keep existing card art in sync when those summaries change. New user-facing behavior goes into the matching section (or a new one in the same style), not into a wall of paragraphs. Keep the document in English.
+
 ### Status / history
 
 - 2026-10-12: defined Ora light presets (default, blue, green, purple, orange), one dark theme, and header theme selection.
@@ -77,4 +79,5 @@ For each implementation change, update **both `README.md`** (user guide, feature
 - 2026-10-12: translated project comments and developer/user documentation to English.
 - 2026-10-12: added English, Italian, and Spanish typed dictionaries, browser-language detection with English fallback, a persistent language selector, and locale-aware report UI and CSV/Excel exports.
 - 2026-10-12: localized timer, timesheet, account, people, teams, projects, login, setup, and shell navigation in all three dictionaries. API error responses remain Italian pending a request-locale convention.
+- 2026-10-12: restyled `README.md` into a scannable layout of Markdown tables, callouts, and colored SVG cards in `docs/readme/`. Raw HTML is not allowed, because the project viewer shows those tags as text. That presentation is required for every future README update through the end of the project.
 - Current product roadmap: validate exports with large datasets and edge cases; Tauri and Jira are possible later phases.
