@@ -71,7 +71,7 @@ The database path is fixed at `prisma/ORA.db`; it is not configurable.
 
 ### Publishing a GitHub release
 
-The local, Git-ignored `scripts/publish-release.ps1` helper can bump the patch, minor, or major version, commit the `package.json` change, push the commit and annotated tag, and publish a GitHub Release with your notes. It requires a clean branch (apart from this ignored helper) with an `origin` upstream, GitHub CLI (`gh`) authenticated, and a confirmation before publishing. Run it from the repository root in PowerShell:
+The local, Git-ignored `scripts/publish-release.ps1` helper can bump the patch, minor, or major version, commit the `package.json` change, push the commit and annotated tag, and publish a GitHub Release with your notes. It requires a clean branch (apart from this ignored helper) with an `origin` upstream, GitHub CLI (`gh`) authenticated, and a confirmation (`y` or `yes`, case-insensitive) before publishing. Run it from the repository root in PowerShell:
 
 ```powershell
 .\scripts\publish-release.ps1 -Bump patch -Message "Fix timer conflict handling"

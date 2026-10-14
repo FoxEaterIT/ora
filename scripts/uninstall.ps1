@@ -19,8 +19,8 @@ do {
   $keepAnswer = (Read-Host "Keep application data (.env, SQLite database, backups, and custom logos) after uninstall? [Y/N]").Trim()
 } until ($keepAnswer -match '^(?i:Y|N|YES|NO)$')
 $keepData = $keepAnswer -match '^(?i:Y|YES)$'
-$confirm = Read-Host "Continue with uninstall? Type REMOVE to confirm"
-if ($confirm -cne "REMOVE") { Write-Host "Cancelled. Nothing was changed."; exit 0 }
+$confirm = (Read-Host "Continue with uninstall? [Y/N]").Trim()
+if ($confirm -notmatch '^(?i:y|yes)$') { Write-Host "Cancelled. Nothing was changed."; exit 0 }
 
 $exportRoot = Join-Path ([Environment]::GetFolderPath("MyDocuments")) ("Ora-Uninstall-Export-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
 New-Item -ItemType Directory -Path $exportRoot -Force | Out-Null
