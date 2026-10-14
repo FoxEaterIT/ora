@@ -30,7 +30,7 @@ export default function ReportPage() {
   const [filters, setFilters] = useState({ from: "", to: "", userIds: [] as string[], projectIds: [] as string[], teamIds: [] as string[] });
 
   useEffect(() => {
-    Promise.all([fetch("/api/users").then((r) => r.json()), fetch("/api/projects").then((r) => r.json()), fetch("/api/teams").then((r) => r.json())]).then(([u, p, t]) => {
+    Promise.all([fetch("/api/users?includeDeactivated=1").then((r) => r.json()), fetch("/api/projects").then((r) => r.json()), fetch("/api/teams").then((r) => r.json())]).then(([u, p, t]) => {
       setUsers((u.users ?? []).map((user: { id: string; name?: string; firstName?: string; lastName?: string; email: string }) => ({ id: user.id, name: user.name || `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email })));
       setProjects((p.projects ?? []).map((project: Option) => ({ id: project.id, name: project.name })));
       setTeams((t.teams ?? []).map((team: Option) => ({ id: team.id, name: team.name })));
@@ -40,6 +40,7 @@ export default function ReportPage() {
   const filterParams = useMemo(() => {
     const params = new URLSearchParams();
     params.set("locale", locale);
+    params.set("includeDeactivated", "1");
     if (filters.from) params.set("from", new Date(filters.from).toISOString());
     if (filters.to) params.set("to", new Date(filters.to + "T23:59:59.999").toISOString());
     filters.userIds.forEach((id) => params.append("userId", id));

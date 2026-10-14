@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { DEFAULT_TEAM_COLOR } from "@/lib/server-config";
 import { getCurrentUser, isManager } from "@/lib/auth";
 import { fullName } from "@/lib/users";
+import { requestMessages } from "@/i18n/request";
 
 const createTeamSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -29,12 +30,12 @@ function serializeTeam<T extends { members: { user: { id: string; firstName: str
 
 export async function GET() {
   const me = await getCurrentUser();
-  if (!me) return NextResponse.json({ error: "Non autenticato." }, { status: 401 });
+  if (!me) return NextResponse.json({ error: (await requestMessages()).api.unauthenticated }, { status: 401 });
 
   const teams = await prisma.team.findMany({
     where: isManager(me.role) ? {} : { members: { some: { userId: me.id } } },
     include: {
-      members: { include: { user: true } },
+      members: { where: { user: { deactivatedAt: null } }, include: { user: true } },
       _count: { select: { projects: true } },
     },
     orderBy: { name: "asc" },
@@ -45,11 +46,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const me = await getCurrentUser();
-  if (!me) return NextResponse.json({ error: "Non autenticato." }, { status: 401 });
-  if (!isManager(me.role)) return NextResponse.json({ error: "Permesso negato." }, { status: 403 });
+  const t = await requestMessages();
+  if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
+  if (!isManager(me.role)) return NextResponse.json({ error: t.api.forbidden }, { status: 403 });
 
   const parsed = createTeamSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Dati del team non validi." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: t.api.invalidTeam }, { status: 400 });
 
   const team = await prisma.team.create({
     data: {
@@ -57,10 +59,10 @@ export async function POST(request: Request) {
       description: parsed.data.description ?? "",
       color: parsed.data.color ?? DEFAULT_TEAM_COLOR,
       members: parsed.data.memberIds?.length
-        ? { create: parsed.data.memberIds.map((userId) => ({ userId })) }
+        ? { create: (await prisma.user.findMany({ where: { id: { in: parsed.data.memberIds }, deactivatedAt: null }, select: { id: true } })).map((user) => ({ userId: user.id })) }
         : undefined,
     },
-    include: { members: { include: { user: true } } },
+    include: { members: { where: { user: { deactivatedAt: null } }, include: { user: true } } },
   });
 
   return NextResponse.json({ team: serializeTeam(team) }, { status: 201 });

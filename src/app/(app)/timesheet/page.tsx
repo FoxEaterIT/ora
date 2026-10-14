@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { Button, Card, Empty, ErrorText, Field, Input, PageHeader, Select } from "@/components/ui";
 import { entryDuration, formatDuration, hours, toLocalInput } from "@/lib/utils";
 import { useI18n } from "@/i18n/provider";
@@ -89,12 +89,6 @@ export default function TimesheetPage() {
     load();
   }
 
-  async function remove(id: string) {
-    if (!confirm(t.deleteEntry)) return;
-    await fetch(`/api/entries/${id}`, { method: "DELETE" });
-    load();
-  }
-
   const total = entries.reduce((sum, entry) => sum + entryDuration(entry.start, entry.end), 0);
 
   return (
@@ -170,9 +164,6 @@ export default function TimesheetPage() {
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => beginEdit(entry)} className="rounded-lg p-2 text-muted hover:bg-bg hover:text-ink">
                       <Pencil size={15} />
-                    </button>
-                    <button onClick={() => remove(entry.id)} className="rounded-lg p-2 text-muted hover:bg-bg hover:text-danger">
-                      <Trash2 size={15} />
                     </button>
                   </td>
                 </tr>

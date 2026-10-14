@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isManager } from "@/lib/auth";
+import { requestMessages } from "@/i18n/request";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
@@ -14,22 +15,24 @@ const schema = z.object({
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const me = await getCurrentUser();
-  if (!me) return NextResponse.json({ error: "Non autenticato." }, { status: 401 });
-  if (!isManager(me.role)) return NextResponse.json({ error: "Permesso negato." }, { status: 403 });
+  const t = await requestMessages();
+  if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
+  if (!isManager(me.role)) return NextResponse.json({ error: t.api.forbidden }, { status: 403 });
 
   const { id } = await params;
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Dati non validi." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: t.api.invalidData }, { status: 400 });
 
   const exists = await prisma.project.findUnique({ where: { id } });
-  if (!exists) return NextResponse.json({ error: "Progetto non trovato." }, { status: 404 });
+  if (!exists) return NextResponse.json({ error: t.api.projectNotFound }, { status: 404 });
 
   const project = await prisma.$transaction(async (tx) => {
     if (parsed.data.memberIds) {
+      const activeMembers = await tx.user.findMany({ where: { id: { in: parsed.data.memberIds }, deactivatedAt: null }, select: { id: true } });
       await tx.projectMember.deleteMany({ where: { projectId: id } });
-      if (parsed.data.memberIds.length) {
+      if (activeMembers.length) {
         await tx.projectMember.createMany({
-          data: [...new Set(parsed.data.memberIds)].map((userId) => ({ projectId: id, userId })),
+          data: [...new Set(activeMembers.map((user) => user.id))].map((userId) => ({ projectId: id, userId })),
         });
       }
     }
@@ -49,12 +52,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ project });
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const me = await getCurrentUser();
-  if (!me) return NextResponse.json({ error: "Non autenticato." }, { status: 401 });
-  if (!isManager(me.role)) return NextResponse.json({ error: "Permesso negato." }, { status: 403 });
-
-  const { id } = await params;
-  await prisma.project.delete({ where: { id } }).catch(() => null);
-  return NextResponse.json({ ok: true });
+export async function DELETE() {
+  const t = await requestMessages();
+  return NextResponse.json({ error: t.api.deletionNotAllowed }, { status: 405 });
 }

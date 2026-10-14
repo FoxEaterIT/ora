@@ -307,9 +307,9 @@ Headers, dates, numbers, fallback text, file names, and worksheet titles follow 
 |---|---|
 | **Available** | English, Italian, Spanish. |
 | **First visit** | The first supported language in the browser preferences. Anything else falls back to English. |
-| **Remembered as** | `ora-locale` in this browser. |
-| **Change it** | Language selector in the header. |
-| **Also translated** | Setup, sign-in, the signed-in app, and CSV and Excel report content. |
+| **Remembered as** | `ora-locale` in this browser and a same-site cookie used by API responses. |
+| **Change it** | Language selector in the header. The browser syncs the choice to the cookie for server-side API translations. |
+| **Also translated** | Setup, sign-in, the signed-in app, API error responses, and CSV and Excel report content. Missing or invalid API locale falls back to English. |
 
 Adding a language means adding a typed dictionary in `src/i18n/messages.ts` and running `npm run check:i18n`. Editing translations inside the app is a possible later step, not part of the current setup.
 
@@ -320,11 +320,10 @@ Adding a language means adding a typed dictionary in `src/i18n/messages.ts` and 
 | Topic | Behavior |
 |---|---|
 | Where data lives | Users, teams, projects, and time entries are stored in the configured SQLite file, not only in the browser. |
-| Deleting a user | Also deletes that person's time entries. |
-| Deleting a project | Also deletes the time entries on that project. |
-| Deleting a time entry | Removes it from active data and from reports. |
-| Deleting a team | Leaves existing projects in place, without that team. |
-| Recovery | There is no trash or history archive. Deletion is not reversible from the app. |
+| Deactivating a person | Disables sign-in and hides them from the normal directory and assignment lists; time entries remain. Managers can still select them in reports. Owners can show deactivated people and reactivate an account. |
+| Deleting a team | Permanently removes the team and its memberships. Projects remain without a team. This cannot be undone. |
+| Projects | Cannot be deleted; archive them to stop new time tracking. |
+| Time entries | Cannot be deleted; they remain in history and reports. |
 | Backups | Not automatic. Copy the SQLite file with your own server procedure before important deletions. |
 
 ---
@@ -333,12 +332,13 @@ Adding a language means adding a typed dictionary in `src/i18n/messages.ts` and 
 
 | When | Item |
 |---|---|
+| Done | Localized API errors outside report export in English, Italian, and Spanish, using the selected browser language. |
+| Done | People can be deactivated without losing time history; managers can still select them in reports. Teams can be permanently deleted while projects remain unassigned. Projects and time entries cannot be deleted. |
+| Next | Run the deletion migration and end-to-end deactivation/team deletion flows against a backed-up Windows SQLite installation before deployment. |
+| Next | Add a verified database backup and restore procedure for managers. |
 | Next | Validate exports against large datasets and edge cases. |
-| Next | Automated regression tests for exports, authorization, and theme persistence. |
+| Next | Add automated regression tests for exports, authorization, and theme persistence. |
 | Later | Extra sorting and formatting options for reports. |
-| Later | Desktop app with Tauri. |
-| Later | Jira integration: link projects and issues, then synchronize worklogs. |
-| Later | Request-locale convention for API errors outside report export (those responses are still Italian). |
 | Later | In-app translation editing. |
 
 ---

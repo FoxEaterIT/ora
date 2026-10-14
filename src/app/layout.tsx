@@ -25,7 +25,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var allowed=${JSON.stringify(AVAILABLE_THEMES.map((item) => item.value))};var t=localStorage.getItem("ora-theme");document.documentElement.dataset.theme=t==="dark"?"dark":(allowed.includes(t)?t:${JSON.stringify(EFFECTIVE_DEFAULT_THEME)})}catch(e){document.documentElement.dataset.theme=${JSON.stringify(EFFECTIVE_DEFAULT_THEME)}}`,
+            __html: `try{var allowed=${JSON.stringify(AVAILABLE_THEMES.map((item) => item.value))};var t=localStorage.getItem("ora-theme");document.documentElement.dataset.theme=t==="dark"?"dark":(allowed.includes(t)?t:${JSON.stringify(EFFECTIVE_DEFAULT_THEME)});var stored=localStorage.getItem("ora-locale");var l=stored&&["en","it","es"].includes(stored)?stored:((navigator.languages||[navigator.language]).map(function(v){return v.toLowerCase().split(/[-_]/)[0]}).find(function(v){return ["en","it","es"].includes(v)})||"en");document.cookie="ora-locale="+l+"; Path=/; Max-Age=31536000; SameSite=Lax"}catch(e){document.documentElement.dataset.theme=${JSON.stringify(EFFECTIVE_DEFAULT_THEME)}}`,
           }}
         />
       </head>

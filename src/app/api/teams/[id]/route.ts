@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isManager } from "@/lib/auth";
 import { fullName } from "@/lib/users";
+import { requestMessages } from "@/i18n/request";
 
 const teamSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
@@ -13,22 +14,24 @@ const teamSchema = z.object({
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const me = await getCurrentUser();
-  if (!me) return NextResponse.json({ error: "Non autenticato." }, { status: 401 });
-  if (!isManager(me.role)) return NextResponse.json({ error: "Permesso negato." }, { status: 403 });
+  const t = await requestMessages();
+  if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
+  if (!isManager(me.role)) return NextResponse.json({ error: t.api.forbidden }, { status: 403 });
 
   const { id } = await params;
   const parsed = teamSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Dati non validi." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: t.api.invalidData }, { status: 400 });
   if (!(await prisma.team.findUnique({ where: { id }, select: { id: true } }))) {
-    return NextResponse.json({ error: "Team non trovato." }, { status: 404 });
+    return NextResponse.json({ error: t.api.teamNotFound }, { status: 404 });
   }
 
   const team = await prisma.$transaction(async (tx) => {
     if (parsed.data.memberIds) {
+      const activeMembers = await tx.user.findMany({ where: { id: { in: parsed.data.memberIds }, deactivatedAt: null }, select: { id: true } });
       await tx.teamMember.deleteMany({ where: { teamId: id } });
-      if (parsed.data.memberIds.length) {
+      if (activeMembers.length) {
         await tx.teamMember.createMany({
-          data: [...new Set(parsed.data.memberIds)].map((userId) => ({ teamId: id, userId })),
+          data: [...new Set(activeMembers.map((user) => user.id))].map((userId) => ({ teamId: id, userId })),
         });
       }
     }
@@ -39,7 +42,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         description: parsed.data.description,
         color: parsed.data.color,
       },
-      include: { members: { include: { user: true } } },
+      include: { members: { where: { user: { deactivatedAt: null } }, include: { user: true } } },
     });
   });
 
@@ -56,12 +59,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const me = await getCurrentUser();
-  if (!me) return NextResponse.json({ error: "Non autenticato." }, { status: 401 });
-  if (!isManager(me.role)) return NextResponse.json({ error: "Permesso negato." }, { status: 403 });
+  const t = await requestMessages();
+  if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
+  if (!isManager(me.role)) return NextResponse.json({ error: t.api.forbidden }, { status: 403 });
 
   const { id } = await params;
   const existing = await prisma.team.findUnique({ where: { id }, select: { id: true } });
-  if (!existing) return NextResponse.json({ error: "Team non trovato." }, { status: 404 });
+  if (!existing) return NextResponse.json({ error: t.api.teamNotFound }, { status: 404 });
   await prisma.team.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

@@ -63,7 +63,12 @@ export default function TeamsPage() {
 
   async function remove(id: string) {
     if (!confirm(t.deleteConfirm)) return;
-    await fetch(`/api/teams/${id}`, { method: "DELETE" });
+    const response = await fetch(`/api/teams/${id}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!response.ok) {
+      alert(data.error);
+      return;
+    }
     load();
   }
 

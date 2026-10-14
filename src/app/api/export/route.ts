@@ -54,6 +54,7 @@ export async function GET(request: Request) {
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
   const userIds = [...new Set(url.searchParams.getAll("userId").filter(Boolean))];
+  const includeDeactivated = url.searchParams.get("includeDeactivated") === "1";
   const projectIds = [...new Set(url.searchParams.getAll("projectId").filter(Boolean))];
   const teamIds = [...new Set(url.searchParams.getAll("teamId").filter(Boolean))];
   const selectedFields = [...new Set(url.searchParams.getAll("column"))].filter((key): key is FieldKey => FIELDS.some((field) => field.key === key));
@@ -66,6 +67,9 @@ export async function GET(request: Request) {
   const entries = await prisma.timeEntry.findMany({
     where: {
       ...(userIds.length ? { userId: { in: userIds } } : {}),
+      ...(includeDeactivated && userIds.length
+        ? { user: { OR: [{ deactivatedAt: null }, { id: { in: userIds } }] } }
+        : { user: { deactivatedAt: null } }),
       ...(projectIds.length ? { projectId: { in: projectIds } } : {}),
       ...(teamIds.length ? { project: { teamId: { in: teamIds } } } : {}),
       ...(from || to ? { start: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(to) } : {}) } } : {}),

@@ -57,7 +57,8 @@ export async function getCurrentUser(): Promise<User | null> {
   const store = await cookies();
   const userId = readSessionToken(store.get(SESSION_COOKIE_NAME)?.value);
   if (!userId) return null;
-  return prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  return user?.deactivatedAt ? null : user;
 }
 
 export async function requireUser() {
@@ -92,5 +93,6 @@ export const publicUser = (user: User) => ({
   lastName: user.lastName,
   name: fullName(user),
   role: user.role,
+  deactivatedAt: user.deactivatedAt,
   passwordSet: Boolean(user.passwordHash),
 });

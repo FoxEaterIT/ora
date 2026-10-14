@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isManager } from "@/lib/auth";
 import { canTrack } from "@/lib/access";
 import { fullName } from "@/lib/users";
+import { requestMessages } from "@/i18n/request";
 
 const createEntrySchema = z.object({
   projectId: z.string().min(1),
@@ -15,12 +16,13 @@ const createEntrySchema = z.object({
 /** Lists the current user's entries, or filtered entries for managers. */
 export async function GET(request: Request) {
   const me = await getCurrentUser();
-  if (!me) return NextResponse.json({ error: "Non autenticato." }, { status: 401 });
+  if (!me) return NextResponse.json({ error: (await requestMessages()).api.unauthenticated }, { status: 401 });
 
   const url = new URL(request.url);
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
   const userIds = [...new Set(url.searchParams.getAll("userId").filter(Boolean))];
+  const includeDeactivated = url.searchParams.get("includeDeactivated") === "1" && isManager(me.role);
   const projectIds = [...new Set(url.searchParams.getAll("projectId").filter(Boolean))];
   const teamIds = [...new Set(url.searchParams.getAll("teamId").filter(Boolean))];
   const mine = url.searchParams.get("mine") === "1";
@@ -30,6 +32,11 @@ export async function GET(request: Request) {
     ...(projectIds.length ? { projectId: { in: projectIds } } : {}),
     ...(teamIds.length ? { project: { teamId: { in: teamIds } } } : {}),
     ...(!isManager(me.role) || mine ? { userId: me.id } : userIds.length ? { userId: { in: userIds } } : {}),
+    ...(isManager(me.role) && !mine ? (
+      includeDeactivated
+        ? (userIds.length ? { user: { OR: [{ deactivatedAt: null }, { id: { in: userIds } }] } } : {})
+        : { user: { deactivatedAt: null } }
+    ) : {}),
   };
 
   const entries = await prisma.timeEntry.findMany({
@@ -52,23 +59,24 @@ export async function GET(request: Request) {
 /** Starts either a timer or a manually entered, completed time entry. */
 export async function POST(request: Request) {
   const me = await getCurrentUser();
-  if (!me) return NextResponse.json({ error: "Non autenticato." }, { status: 401 });
+  const t = await requestMessages();
+  if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
 
   const parsed = createEntrySchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Dati non validi." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: t.api.invalidData }, { status: 400 });
   if (!(await canTrack(me, parsed.data.projectId))) {
-    return NextResponse.json({ error: "Non puoi registrare tempo su questo progetto." }, { status: 403 });
+    return NextResponse.json({ error: t.api.cannotTrackProject }, { status: 403 });
   }
 
   const running = await prisma.timeEntry.findFirst({ where: { userId: me.id, end: null } });
   if (running && !parsed.data.end) {
-    return NextResponse.json({ error: "Hai già un timer attivo. Fermalo prima di avviarne un altro." }, { status: 409 });
+    return NextResponse.json({ error: t.api.timerAlreadyRunning }, { status: 409 });
   }
 
   const start = parsed.data.start ? new Date(parsed.data.start) : new Date();
   const end = parsed.data.end ? new Date(parsed.data.end) : null;
   if (end && end <= start) {
-    return NextResponse.json({ error: "L'orario di fine deve essere successivo all'inizio." }, { status: 400 });
+    return NextResponse.json({ error: t.api.endAfterStart }, { status: 400 });
   }
 
   const entry = await prisma.timeEntry.create({

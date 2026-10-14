@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Archive, Plus, Trash2 } from "lucide-react";
+import { Archive, Plus } from "lucide-react";
 import { Button, Card, Empty, ErrorText, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
 import { PROJECT_COLORS } from "@/lib/app-config";
 import { useI18n } from "@/i18n/provider";
@@ -97,12 +97,6 @@ export default function ProjectsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ archived: !project.archived }),
     });
-    load();
-  }
-
-  async function remove(id: string) {
-    if (!confirm(t.deleteConfirm)) return;
-    await fetch(`/api/projects/${id}`, { method: "DELETE" });
     load();
   }
 
@@ -203,9 +197,6 @@ export default function ProjectsPage() {
                 <div className="flex">
                   <button onClick={() => toggleArchive(project)} className="rounded-lg p-2 text-muted hover:bg-bg" title={project.archived ? t.unarchive : t.archive}>
                     <Archive size={16} />
-                  </button>
-                  <button onClick={() => remove(project.id)} className="rounded-lg p-2 text-muted hover:text-danger">
-                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>

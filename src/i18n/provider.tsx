@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { DEFAULT_LOCALE, getMessages, normalizeLocale, type Locale, type Messages } from "@/i18n/messages";
+import { DEFAULT_LOCALE, getMessages, normalizeLocale, LOCALE_COOKIE, type Locale, type Messages } from "@/i18n/messages";
 
 type I18nValue = { locale: Locale; messages: Messages; setLocale: (locale: Locale) => void };
 const I18nContext = createContext<I18nValue | null>(null);
@@ -13,16 +13,20 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     const browser = typeof navigator === "undefined" ? undefined : navigator.languages.map(normalizeLocale).find(Boolean) ?? normalizeLocale(navigator.language);
     const initial = saved ?? browser ?? DEFAULT_LOCALE;
     setLocaleState(initial);
-    localStorage.setItem("ora-locale", initial);
-    document.documentElement.lang = initial;
+    persistLocale(initial);
   }, []);
   const setLocale = (next: Locale) => {
     setLocaleState(next);
-    localStorage.setItem("ora-locale", next);
-    document.documentElement.lang = next;
+    persistLocale(next);
   };
   const value = useMemo(() => ({ locale, messages: getMessages(locale), setLocale }), [locale]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+function persistLocale(locale: Locale) {
+  localStorage.setItem(LOCALE_COOKIE, locale);
+  document.cookie = `${LOCALE_COOKIE}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  document.documentElement.lang = locale;
 }
 
 export function useI18n() {

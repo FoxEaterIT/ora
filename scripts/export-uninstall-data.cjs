@@ -1,5 +1,9 @@
+// CommonJS is required because this script is executed as a standalone .cjs file.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const path = require("node:path");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const ExcelJS = require("exceljs");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();

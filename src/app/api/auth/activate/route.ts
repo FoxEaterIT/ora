@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ensureOwner, PENDING_OWNER_EMAIL } from "@/lib/seed";
 import { hashPassword, publicUser, setSession } from "@/lib/auth";
+import { requestMessages } from "@/i18n/request";
 
 const activationSchema = z.object({
   email: z.string().email(),
@@ -10,7 +11,6 @@ const activationSchema = z.object({
   confirmPassword: z.string().min(8).max(100),
 }).refine((data) => data.password === data.confirmPassword, {
   path: ["confirmPassword"],
-  message: "Le password non coincidono.",
 });
 
 /**
@@ -19,22 +19,24 @@ const activationSchema = z.object({
  */
 export async function POST(request: Request) {
   await ensureOwner();
+  const t = await requestMessages();
   const parsed = activationSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Dati non validi." }, { status: 400 });
+    const mismatch = parsed.error.issues.some((issue) => issue.path[0] === "confirmPassword");
+    return NextResponse.json({ error: mismatch ? t.api.passwordMismatch : t.api.invalidData }, { status: 400 });
   }
 
   const email = parsed.data.email.trim().toLowerCase();
-  if (email === PENDING_OWNER_EMAIL) return NextResponse.json({ error: "Completa la configurazione iniziale da /setup." }, { status: 403 });
+  if (email === PENDING_OWNER_EMAIL) return NextResponse.json({ error: t.api.completeSetup }, { status: 403 });
   const passwordHash = await hashPassword(parsed.data.password);
-  const result = await prisma.user.updateMany({ where: { email, passwordHash: null, role: { not: "OWNER" } }, data: { passwordHash } });
+  const result = await prisma.user.updateMany({ where: { email, passwordHash: null, deactivatedAt: null, role: { not: "OWNER" } }, data: { passwordHash } });
 
   if (result.count !== 1) {
-    return NextResponse.json({ error: "Account non trovato oppure già attivato. Prova ad accedere." }, { status: 409 });
+    return NextResponse.json({ error: t.api.accountMissingOrActivated }, { status: 409 });
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return NextResponse.json({ error: "Account non trovato." }, { status: 404 });
+  if (!user || user.deactivatedAt) return NextResponse.json({ error: t.api.accountNotFoundShort }, { status: 404 });
 
   await setSession(user.id);
   return NextResponse.json({ user: publicUser(user) }, { status: 201 });
