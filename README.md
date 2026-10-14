@@ -92,7 +92,36 @@ The installer builds the production app and registers/starts the `OraTimeTrackin
 | Files and identity | Run the process under a Windows account that can read the install files and write to the configured SQLite database and the app directory (the one-time setup code is written there). |
 | Database | One app instance and persistent storage. The database is fixed at `%APPDATA%\Ora\prisma\ORA.db`; it is not configurable by users. A service running under another account must use the same installation directory. |
 
-**Quick IIS checklist:** install IIS and its URL Rewrite/ARR modules; enable ARR proxying; create the IIS site and bind the hostname with an HTTPS certificate; add a reverse-proxy rewrite rule to `http://127.0.0.1:33333` (or your configured port); set `APP_ORIGIN` to the public HTTPS URL; start `OraTimeTrackingService` and verify the site through IIS. Consult Microsoft IIS documentation for the exact module installation and rule steps for your Windows Server version.
+#### IIS reverse-proxy example
+
+The following is a basic single-site setup for Windows Server. Install IIS using Server Manager or Windows Features, then install the **IIS URL Rewrite** and **Application Request Routing (ARR)** modules from Microsoft. ARR must be enabled as a proxy at the server level:
+
+1. Open **IIS Manager** and select the server node.
+2. Open **Application Request Routing Cache** → **Server Proxy Settings…**.
+3. Select **Enable proxy**, then choose **Apply**.
+4. Create a folder for the proxy site, for example `C:\inetpub\OraProxy`, and save the following as `web.config` in that folder:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <rewrite>
+      <rules>
+        <rule name="Ora reverse proxy" stopProcessing="true">
+          <match url="(.*)" />
+          <action type="Rewrite" url="http://127.0.0.1:33333/{R:1}" />
+        </rule>
+      </rules>
+    </rewrite>
+  </system.webServer>
+</configuration>
+```
+
+5. In **Sites**, choose **Add Website…**. Set the physical path to the proxy folder and configure a binding. For a local smoke test, use HTTP on port `80`; for real use, bind the intended hostname to HTTPS and select a valid certificate.
+6. Set `APP_ORIGIN` in `%APPDATA%\\Ora\\.env` to the public base URL (for example, `https://ora.example.com`), then restart `OraTimeTrackingService` so the setting takes effect.
+7. Confirm `OraTimeTrackingService` is running, then browse to the IIS binding (for example, `http://localhost/` for the local test). Also confirm `http://localhost:33333` still works directly on the server.
+
+For access from other devices, configure DNS/hostname, a valid HTTPS certificate, and Windows Firewall rules for the IIS binding. Allow inbound traffic to IIS; do not expose Ora's backend port `33333` directly to untrusted networks. The proxy target should remain local (`127.0.0.1`). The example assumes Ora uses its default port; update the target if `PORT` is changed. Consult Microsoft IIS documentation for module installation and version-specific details.
 
 After the first-time `/setup`, keep the app behind HTTPS and do not expose its local listening port directly to untrusted networks.
 
