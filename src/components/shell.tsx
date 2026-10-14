@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Clock3, FolderKanban, LayoutDashboard, LogOut, Menu, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, X, Settings2 } from "lucide-react";
+import { Clock3, DatabaseBackup, FolderKanban, LayoutDashboard, LogOut, Menu, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, X, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME, APP_TAGLINE, AVAILABLE_THEMES, EFFECTIVE_DEFAULT_THEME, appLogoForTheme } from "@/lib/app-config";
 import { locales } from "@/i18n/messages";
@@ -95,6 +95,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
           { href: "/manage/projects", label: messages.projects, icon: FolderKanban },
           { href: "/manage/teams", label: messages.teams, icon: UsersRound },
           { href: "/manage/people", label: messages.people, icon: Users },
+          { href: "/manage/backups", label: messages.backups, icon: DatabaseBackup },
         ]
       : []),
   ];

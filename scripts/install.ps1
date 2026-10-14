@@ -38,10 +38,20 @@ if ($InstalledCopy) {
 } else {
   if ([System.IO.Path]::GetFullPath($sourceRoot).TrimEnd([char]92) -ine [System.IO.Path]::GetFullPath($installRoot).TrimEnd([char]92)) {
     Write-Step "Installing Ora to $installRoot"
+    if (Test-Path $installRoot) {
+      $existingFiles = @(Get-ChildItem -LiteralPath $installRoot -Force -ErrorAction SilentlyContinue)
+      $existingDb = Join-Path $installRoot "prisma\ORA.db"
+      if ($existingFiles.Count -gt 0 -and (Test-Path $existingDb)) {
+        throw "An Ora database already exists at $installRoot. Refusing to overwrite an existing installation. Use the updater for installed copies."
+      }
+      if ($existingFiles.Count -gt 0) {
+        throw "$installRoot already exists and is not empty. Move or back up its contents before installing from this workspace."
+      }
+    }
     New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
     $robocopy = Get-Command robocopy -ErrorAction SilentlyContinue
     if (-not $robocopy) { throw "robocopy is required to copy Ora to the installation folder." }
-    & robocopy $sourceRoot $installRoot /E /XD node_modules .next .git /XF .env
+    & robocopy $sourceRoot $installRoot /E /XD node_modules .next .git /XF .env *.db *.db-wal *.db-shm *.tsbuildinfo
     if ($LASTEXITCODE -ge 8) { throw "Could not copy Ora to $installRoot (robocopy exit code $LASTEXITCODE)." }
   }
   $root = $installRoot

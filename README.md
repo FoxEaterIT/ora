@@ -63,11 +63,11 @@ The palette control is shown only in light mode. The sun and moon control switch
 
 ### Windows installer
 
-Download or clone the project, then run **`install.cmd` as Administrator** in the project folder; administrator privileges are required to register the Windows service.
+Run **`install.cmd` as Administrator** from the workspace folder; the installer copies the current workspace source (including local code changes) to `%APPDATA%\Ora` before building and registering the Windows service. It excludes local development databases and refuses to install over a non-empty `%APPDATA%\Ora`; use the updater for an existing installation.
 
 | Step | What the installer does |
 |---|---|
-| Install location | Copies the project to `%APPDATA%\Ora` (the current user's roaming AppData folder). Run `install.cmd` as Administrator to register the machine-wide Windows service. |
+| Install location | Copies the current workspace source to `%APPDATA%\Ora` (the current user's roaming AppData folder), excluding local databases and build artifacts. Run `install.cmd` as Administrator to register the machine-wide Windows service. The installer refuses to overwrite a non-empty install folder. |
 | Node.js | Uses Node.js 20 or newer. If it is missing, installs the current LTS with `winget`. |
 | Packages | Runs `npm install`. |
 | Configuration | Creates `.env` from `.env.example` and replaces `AUTH_SECRET` with a random value. An existing `.env` in the install folder is never overwritten. |
@@ -317,6 +317,10 @@ Adding a language means adding a typed dictionary in `src/i18n/messages.ts` and 
 
 ## Data to remember
 
+### Back up Ora
+
+Managers can create a point-in-time SQLite snapshot from **Backups** in the navigation menu. The download includes all application data and credentials, so keep it in a restricted, encrypted location. Ora creates the snapshot with SQLite's online backup operation; it does not copy the live database file directly. The snapshot uses a temporary server-side file that is removed after the response is prepared.
+
 | Topic | Behavior |
 |---|---|
 | Where data lives | Users, teams, projects, and time entries are stored in the configured SQLite file, not only in the browser. |
@@ -324,7 +328,19 @@ Adding a language means adding a typed dictionary in `src/i18n/messages.ts` and 
 | Deleting a team | Permanently removes the team and its memberships. Projects remain without a team. This cannot be undone. |
 | Projects | Cannot be deleted; archive them to stop new time tracking. |
 | Time entries | Cannot be deleted; they remain in history and reports. |
-| Backups | Not automatic. Copy the SQLite file with your own server procedure before important deletions. |
+| Backups | Owners and admins can download a consistent full-database snapshot from **Backups**. Files contain sensitive data and must be stored securely. |
+
+### Restore on Windows
+
+Restore is intentionally an offline administrator operation, not an in-app upload. Validate the backup before replacing production data, and keep a separate rollback copy.
+
+1. Stop `OraTimeTrackingService` and confirm it is stopped. Confirm no Ora `node.exe` process is still running.
+2. Copy the current `%APPDATA%\Ora\prisma\ORA.db` to a timestamped location outside the installation. Do not proceed if `ORA.db-wal` or `ORA.db-shm` sidecars remain; investigate before continuing.
+3. Validate the downloaded file with SQLite `PRAGMA integrity_check;` and confirm it reports `ok`. Keep the backup file unchanged.
+4. Copy the validated backup to `%APPDATA%\Ora\prisma\ORA.db`, replacing the active database. Remove stale `ORA.db-wal` and `ORA.db-shm` only while the service is stopped.
+5. Start `OraTimeTrackingService`, verify sign-in and representative data, and retain the rollback copy until the application is confirmed healthy.
+
+> Restoring replaces the entire current database, including accounts and all changes made after that backup. A backup from another or newer Ora version may require additional migration checks; test on a separate copy before production.
 
 ---
 
@@ -334,8 +350,8 @@ Adding a language means adding a typed dictionary in `src/i18n/messages.ts` and 
 |---|---|
 | Done | Localized API errors outside report export in English, Italian, and Spanish, using the selected browser language. |
 | Done | People can be deactivated without losing time history; managers can still select them in reports. Teams can be permanently deleted while projects remain unassigned. Projects and time entries cannot be deleted. |
-| Next | Run the deletion migration and end-to-end deactivation/team deletion flows against a backed-up Windows SQLite installation before deployment. |
-| Next | Add a verified database backup and restore procedure for managers. |
+| Done | Owners and admins can download consistent full-database SQLite backups from the management area. Restore remains an offline Windows maintenance operation. |
+| Next | Validate backup and offline restore against a backed-up Windows SQLite installation. |
 | Next | Validate exports against large datasets and edge cases. |
 | Next | Add automated regression tests for exports, authorization, and theme persistence. |
 | Later | Extra sorting and formatting options for reports. |
