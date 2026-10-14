@@ -9,6 +9,11 @@ Ora helps small teams track project hours, manage people and teams, and export r
 - Filter reports and export CSV or Excel files.
 - Preserve time history when people are deactivated; download full SQLite backups.
 - Use English, Italian, or Spanish and choose from light and dark themes.
+- Prevent concurrent requests from creating multiple running timers for one user with clear conflict responses.
+- Make first-owner setup completion robust and secure with proper file permissions and cleanup handling.
+- Bound report exports with explicit maximum rows and columns with localized error messages when limits are exceeded.
+- Add targeted regression tests for high-risk rules including authorization, setup, and concurrent timer behavior.
+- Validate backup, offline restore, and migration using separate Windows SQLite database copies without touching production data.
 
 ## Stack
 
@@ -114,3 +119,27 @@ See [AGENTS.md](./AGENTS.md) for development conventions. No separate contributi
 ## License
 
 [MIT](./LICENSE).
+
+## Roadmap
+
+### Priority 0
+
+- [x] Prevent concurrent requests from creating multiple running timers for one user with a SQLite partial unique index and localized HTTP 409 conflict response; `tests/timer-concurrency.test.ts` exercises concurrent inserts.
+- [x] Make first-owner setup cleanup safe after owner commit; cleanup failure is ignored, and the setup-code file is created with best-effort `0600` permissions. Automated tests cover cleanup failure, code verification/removal, and POSIX file permissions. On Windows, restrict access to the app directory using its service account ACL.
+- [x] Bound report exports to 10,000 rows and 10 columns with localized errors; `tests/export-limits.test.ts` checks boundary decisions and verifies CSV, multi-file ZIP, and XLSX response bodies and media types without a database.
+- [x] Add targeted regression tests for manager-role policy and export API authorization outcomes (401 anonymous, 403 standard user, allowed manager), as well as setup-code lifecycle and timer concurrency.
+- [x] Validate backup, restore, and the pending migration using copies of the installed SQLite database; all write operations stayed within `%TEMP%\\Ora-validation-20261014-173110`, never the installed `ORA.db`.
+  - [x] The baseline copy passed `PRAGMA integrity_check;`; all three recorded migrations were finished.
+  - [x] Applied the pending timer-index migration to a separate workspace copy; it passed integrity check, recorded four finished migrations, and created the expected partial unique index.
+  - [x] Restored a separate baseline copy; integrity passed and its SHA-256 matched the baseline.
+  - [x] Smoke-tested the cloned app on a distinct port with synthetic ADMIN login, `/api/me`, and manager SQLite backup download; the downloaded snapshot passed integrity check and included the synthetic time entry.
+  - [x] Exercise authenticated report CSV/XLSX routes on the cloned app; both returned HTTP 200 with the expected content types.
+  - [x] Restore the downloaded snapshot into a second isolated app clone; integrity passed and restored app page, synthetic login, `/api/me`, and CSV export all returned HTTP 200.
+  - [x] Exercise authenticated report CSV/XLSX routes on the cloned app; both returned HTTP 200 with expected content types.
+  - [x] Smoke-test the isolated app clone on `127.0.0.1:33334`: login page returned HTTP 200, `/api/setup` reported setup complete, malformed login returned 400, and anonymous backup request returned 401. The clone used a copied database and config; no installed data was changed.
+  - [x] Verify synthetic ADMIN sign-in (`/api/auth/login` and `/api/me`) and manager-only SQLite snapshot export (`/api/backups`, HTTP 200, 90,112 bytes). The downloaded snapshot passed `PRAGMA integrity_check` and contained two users plus one synthetic time entry. Test servers were stopped; no persistent test service was installed.
+  - [ ] Exercise the actual Windows service updater flow against a dedicated disposable service installation; the installed service was intentionally not stopped or altered.
+
+> **Validation record (2026-10-14):** Used `%TEMP%\\Ora-validation-20261014-173110`. The read-only online-backup baseline passed `PRAGMA integrity_check` and had three finished migrations. Applying the pending timer-uniqueness migration to a copied workspace succeeded, passed integrity checks, recorded four finished migrations, and created `TimeEntry_one_running_per_user_key`. Restoring a separate baseline copy with SQLite’s backup API passed integrity checks and matched the baseline SHA-256. The cloned app built and ran on port `33334`; synthetic ADMIN login and `/api/me` succeeded. The manager-only `/api/backups` endpoint returned a 90,112-byte SQLite snapshot containing the synthetic row; that snapshot passed `PRAGMA integrity_check`. Authenticated report CSV and XLSX routes both returned HTTP 200 with expected media types on the clone. Restoring the downloaded snapshot into a second app clone preserved integrity; restored app login page, synthetic ADMIN login, `/api/me`, and CSV report export all returned HTTP 200. The installed service remained Running and was never redirected, stopped, or reconfigured. The actual Windows service updater flow remains untested.
+
+> **Safe Windows validation:** Use a clearly named test directory outside the installation. This validation used an online SQLite backup from the installed DB while opening its source read-only, then ran integrity checks, migration, and restore only on temp copies; the installed service remained untouched. Future service/update-flow tests should use synthetic data or isolated copies only. Stop only a disposable test service if quiescing its test database; never stop or reconfigure the installed service for testing. Run `npx prisma migrate deploy` only from a disposable workspace with `file:./ORA.db` resolving to its test DB. Restore to another test path and run only the test app on a confirmed distinct port. Never point the installed service at test files or replace its `ORA.db`. Verify hashes, integrity, and test-only sign-in/exports before cleaning the clearly labeled temp directory.

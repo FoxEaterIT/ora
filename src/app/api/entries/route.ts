@@ -73,19 +73,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: t.api.timerAlreadyRunning }, { status: 409 });
   }
 
-  const start = parsed.data.start ? new Date(parsed.data.start) : new Date();
-  const end = parsed.data.end ? new Date(parsed.data.end) : null;
-  if (end && end <= start) {
-    return NextResponse.json({ error: t.api.endAfterStart }, { status: 400 });
+  try {
+    const start = parsed.data.start ? new Date(parsed.data.start) : new Date();
+    const end = parsed.data.end ? new Date(parsed.data.end) : null;
+    if (end && end <= start) {
+      return NextResponse.json({ error: t.api.endAfterStart }, { status: 400 });
+    }
+
+    const entry = await prisma.timeEntry.create({
+      data: { userId: me.id, projectId: parsed.data.projectId, description: parsed.data.description ?? "", start, end },
+      include: {
+        project: { include: { team: true } },
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
+    });
+
+    return NextResponse.json({ entry: { ...entry, user: { ...entry.user, name: fullName(entry.user) } } }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Unique constraint failed")) {
+      return NextResponse.json({ error: t.api.timerAlreadyRunning }, { status: 409 });
+    }
+    throw error;
   }
-
-  const entry = await prisma.timeEntry.create({
-    data: { userId: me.id, projectId: parsed.data.projectId, description: parsed.data.description ?? "", start, end },
-    include: {
-      project: { include: { team: true } },
-      user: { select: { id: true, firstName: true, lastName: true, email: true } },
-    },
-  });
-
-  return NextResponse.json({ entry: { ...entry, user: { ...entry.user, name: fullName(entry.user) } } }, { status: 201 });
 }

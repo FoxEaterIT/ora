@@ -4,7 +4,28 @@ import { zipSync, strToU8 } from "fflate";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isManager } from "@/lib/auth";
 import { fullName } from "@/lib/users";
-import { DEFAULT_LOCALE, getMessages, normalizeLocale } from "@/i18n/messages";
+import { DEFAULT_LOCALE, getMessages, normalizeLocale, type Locale } from "@/i18n/messages";
+
+const MAX_EXPORT_ROWS = 10000;
+const MAX_EXPORT_COLUMNS = 10;
+
+export function exportAuthorization(role: "OWNER" | "ADMIN" | "USER" | null) {
+  if (!role) return "unauthorized" as const;
+  if (!isManager(role)) return "forbidden" as const;
+  return null;
+}
+
+export function exportAuthorizationResponse(role: "OWNER" | "ADMIN" | "USER" | null, messages: { unauthorized: string; forbidden: string }) {
+  const error = exportAuthorization(role);
+  if (!error) return null;
+  return NextResponse.json({ error: messages[error] }, { status: error === "unauthorized" ? 401 : 403 });
+}
+
+export function exportLimitError(rowCount: number, columnCount: number) {
+  if (rowCount > MAX_EXPORT_ROWS) return "maxRows" as const;
+  if (columnCount > MAX_EXPORT_COLUMNS) return "maxColumns" as const;
+  return null;
+}
 
 const FIELDS = [
   { key: "data", message: "date", width: 14 }, { key: "persona", message: "person", width: 24 },
@@ -41,55 +62,14 @@ function uniqueSheetName(name: string, used: Set<string>, fallback: string) {
   return result;
 }
 
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const locale = normalizeLocale(url.searchParams.get("locale")) ?? DEFAULT_LOCALE;
+export async function buildExportResponse(
+  format: "csv" | "xlsx",
+  rows: (ExportRow & { groupId: string; groupName: string })[],
+  selectedColumns: { key: FieldKey; label: string; width: number }[],
+  focus: "team" | "project" | "user",
+  locale: Locale,
+) {
   const t = getMessages(locale);
-  const fields = FIELDS.map((field) => ({ ...field, label: t.report[field.message] }));
-  const me = await getCurrentUser();
-  if (!me) return NextResponse.json({ error: t.report.unauthorized }, { status: 401 });
-  if (!isManager(me.role)) return NextResponse.json({ error: t.report.forbidden }, { status: 403 });
-  const format = url.searchParams.get("format") === "csv" ? "csv" : "xlsx";
-  const focus = ["team", "project", "user"].includes(url.searchParams.get("focus") ?? "") ? url.searchParams.get("focus")! : "project";
-  const from = url.searchParams.get("from");
-  const to = url.searchParams.get("to");
-  const userIds = [...new Set(url.searchParams.getAll("userId").filter(Boolean))];
-  const includeDeactivated = url.searchParams.get("includeDeactivated") === "1";
-  const projectIds = [...new Set(url.searchParams.getAll("projectId").filter(Boolean))];
-  const teamIds = [...new Set(url.searchParams.getAll("teamId").filter(Boolean))];
-  const selectedFields = [...new Set(url.searchParams.getAll("column"))].filter((key): key is FieldKey => FIELDS.some((field) => field.key === key));
-  const selectedKeys = FIELDS.filter((field) => selectedFields.includes(field.key)).map((field) => field.key);
-  const selectedColumns = fields.filter((field) => selectedKeys.includes(field.key));
-  if (!selectedColumns.length) return NextResponse.json({ error: t.report.selectColumn }, { status: 400 });
-  if ((from && Number.isNaN(Date.parse(from))) || (to && Number.isNaN(Date.parse(to)))) return NextResponse.json({ error: t.report.invalidDate }, { status: 400 });
-
-  const dateLocale = locale === "en" ? "en-US" : locale === "es" ? "es-ES" : "it-IT";
-  const entries = await prisma.timeEntry.findMany({
-    where: {
-      ...(userIds.length ? { userId: { in: userIds } } : {}),
-      ...(includeDeactivated && userIds.length
-        ? { user: { OR: [{ deactivatedAt: null }, { id: { in: userIds } }] } }
-        : { user: { deactivatedAt: null } }),
-      ...(projectIds.length ? { projectId: { in: projectIds } } : {}),
-      ...(teamIds.length ? { project: { teamId: { in: teamIds } } } : {}),
-      ...(from || to ? { start: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(to) } : {}) } } : {}),
-    },
-    include: { user: true, project: { include: { team: true } } },
-    orderBy: [{ start: "asc" }, { id: "asc" }],
-  });
-
-  const rows: (ExportRow & { groupId: string; groupName: string })[] = entries.map((entry) => {
-    const ms = Math.max(0, (entry.end?.getTime() ?? Date.now()) - entry.start.getTime());
-    const group = focus === "team" ? { id: entry.project.team?.id ?? "no-team", name: entry.project.team?.name ?? t.report.noTeam }
-      : focus === "user" ? { id: entry.userId, name: fullName(entry.user) }
-      : { id: entry.projectId, name: entry.project.name };
-    return {
-      data: new Intl.DateTimeFormat(dateLocale, { dateStyle: "short" }).format(entry.start),
-      persona: fullName(entry.user), email: entry.user.email, team: entry.project.team?.name ?? "",
-      progetto: entry.project.name, attivita: entry.description, inizio: fmt(entry.start, dateLocale), fine: entry.end ? fmt(entry.end, dateLocale) : t.report.inProgress,
-      ore: Math.round((ms / 3_600_000) * 100) / 100, nota: entry.description, groupId: group.id, groupName: group.name,
-    };
-  });
   const grouped = new Map<string, Group>();
   for (const row of rows) {
     if (!grouped.has(row.groupId)) grouped.set(row.groupId, { id: row.groupId, name: row.groupName, rows: [] });
@@ -123,4 +103,72 @@ export async function GET(request: Request) {
   }
   const buffer = await workbook.xlsx.writeBuffer();
   return new NextResponse(buffer, { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="ora-${focusLabel}-${stamp}.xlsx"` } });
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const locale = normalizeLocale(url.searchParams.get("locale")) ?? DEFAULT_LOCALE;
+  const t = getMessages(locale);
+  const fields = FIELDS.map((field) => ({ ...field, label: t.report[field.message] }));
+  const me = await getCurrentUser();
+  const authorizationResponse = exportAuthorizationResponse(me?.role ?? null, t.report);
+  if (authorizationResponse) return authorizationResponse;
+  const format = url.searchParams.get("format") === "csv" ? "csv" : "xlsx";
+  const focus = ["team", "project", "user"].includes(url.searchParams.get("focus") ?? "") ? url.searchParams.get("focus")! : "project";
+  const from = url.searchParams.get("from");
+  const to = url.searchParams.get("to");
+  const userIds = [...new Set(url.searchParams.getAll("userId").filter(Boolean))];
+  const includeDeactivated = url.searchParams.get("includeDeactivated") === "1";
+  const projectIds = [...new Set(url.searchParams.getAll("projectId").filter(Boolean))];
+  const teamIds = [...new Set(url.searchParams.getAll("teamId").filter(Boolean))];
+  const selectedFields = [...new Set(url.searchParams.getAll("column"))].filter((key): key is FieldKey => FIELDS.some((field) => field.key === key));
+  const selectedKeys = FIELDS.filter((field) => selectedFields.includes(field.key)).map((field) => field.key);
+  const selectedColumns = fields.filter((field) => selectedKeys.includes(field.key));
+  if (!selectedColumns.length) return NextResponse.json({ error: t.report.selectColumn }, { status: 400 });
+  if ((from && Number.isNaN(Date.parse(from))) || (to && Number.isNaN(Date.parse(to)))) return NextResponse.json({ error: t.report.invalidDate }, { status: 400 });
+  const columnLimitError = exportLimitError(0, selectedColumns.length);
+  if (columnLimitError) return NextResponse.json({ error: t.report[columnLimitError] }, { status: 400 });
+
+  const totalEntries = await prisma.timeEntry.count({
+    where: {
+      ...(userIds.length ? { userId: { in: userIds } } : {}),
+      ...(includeDeactivated && userIds.length
+        ? { user: { OR: [{ deactivatedAt: null }, { id: { in: userIds } }] } }
+        : { user: { deactivatedAt: null } }),
+      ...(projectIds.length ? { projectId: { in: projectIds } } : {}),
+      ...(teamIds.length ? { project: { teamId: { in: teamIds } } } : {}),
+      ...(from || to ? { start: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(to) } : {}) } } : {}),
+    },
+  });
+  const rowLimitError = exportLimitError(totalEntries, selectedColumns.length);
+  if (rowLimitError) return NextResponse.json({ error: t.report[rowLimitError] }, { status: 400 });
+
+  const dateLocale = locale === "en" ? "en-US" : locale === "es" ? "es-ES" : "it-IT";
+  const entries = await prisma.timeEntry.findMany({
+    where: {
+      ...(userIds.length ? { userId: { in: userIds } } : {}),
+      ...(includeDeactivated && userIds.length
+        ? { user: { OR: [{ deactivatedAt: null }, { id: { in: userIds } }] } }
+        : { user: { deactivatedAt: null } }),
+      ...(projectIds.length ? { projectId: { in: projectIds } } : {}),
+      ...(teamIds.length ? { project: { teamId: { in: teamIds } } } : {}),
+      ...(from || to ? { start: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(to) } : {}) } } : {}),
+    },
+    include: { user: true, project: { include: { team: true } } },
+    orderBy: [{ start: "asc" }, { id: "asc" }],
+  });
+
+  const rows: (ExportRow & { groupId: string; groupName: string })[] = entries.map((entry) => {
+    const ms = Math.max(0, (entry.end?.getTime() ?? Date.now()) - entry.start.getTime());
+    const group = focus === "team" ? { id: entry.project.team?.id ?? "no-team", name: entry.project.team?.name ?? t.report.noTeam }
+      : focus === "user" ? { id: entry.userId, name: fullName(entry.user) }
+      : { id: entry.projectId, name: entry.project.name };
+    return {
+      data: new Intl.DateTimeFormat(dateLocale, { dateStyle: "short" }).format(entry.start),
+      persona: fullName(entry.user), email: entry.user.email, team: entry.project.team?.name ?? "",
+      progetto: entry.project.name, attivita: entry.description, inizio: fmt(entry.start, dateLocale), fine: entry.end ? fmt(entry.end, dateLocale) : t.report.inProgress,
+      ore: Math.round((ms / 3_600_000) * 100) / 100, nota: entry.description, groupId: group.id, groupName: group.name,
+    };
+  });
+  return buildExportResponse(format, rows, selectedColumns, focus as "team" | "project" | "user", locale);
 }

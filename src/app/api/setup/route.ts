@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, publicUser, setSession } from "@/lib/auth";
 import { ensureOwner, PENDING_OWNER_EMAIL } from "@/lib/seed";
 import { OWNER_EMAIL, OWNER_PASSWORD } from "@/lib/server-config";
-import { removeSetupCode, verifySetupCode } from "@/lib/setup-code";
+import { removeSetupCodeAfterCommit, verifySetupCode } from "@/lib/setup-code";
 import { requestMessages } from "@/i18n/request";
 
 const schema = z.object({
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: configuredOwner.id } });
   await setSession(user.id);
-  await removeSetupCode();
+  await removeSetupCodeAfterCommit();
   return NextResponse.json({ user: publicUser(user) }, { status: 201 });
 }
 
