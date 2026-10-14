@@ -69,7 +69,17 @@ The database path is fixed at `prisma/ORA.db`; it is not configurable.
 | `npm run check:i18n` | Check translation dictionary completeness. |
 | `npx tsc --noEmit` | Run the TypeScript check. |
 
-There is no automated test script configured in `package.json`.
+### Publishing a GitHub release
+
+The local, Git-ignored `scripts/publish-release.ps1` helper can bump the patch, minor, or major version, commit the `package.json` change, push the commit and annotated tag, and publish a GitHub Release with your notes. It requires a clean branch (apart from this ignored helper) with an `origin` upstream, GitHub CLI (`gh`) authenticated, and a confirmation before publishing. Run it from the repository root in PowerShell:
+
+```powershell
+.\scripts\publish-release.ps1 -Bump patch -Message "Fix timer conflict handling"
+```
+
+Use `-Bump minor` or `-Bump major` for those version increments. Publishing is a real remote operation; the release event triggers the GitHub Actions workflow that attaches the Windows updater ZIP. If a network or GitHub error occurs mid-publish, inspect Git status, tags, and Releases before retrying.
+
+Run `npm test` to execute the automated regression tests.
 
 ## Project structure
 
@@ -137,6 +147,8 @@ See [AGENTS.md](./AGENTS.md) for development conventions. No separate contributi
   - [x] Restore the downloaded snapshot into a second isolated app clone; integrity passed and restored app page, synthetic login, `/api/me`, and CSV export all returned HTTP 200.
   - [x] Exercise authenticated report CSV/XLSX routes on the cloned app; both returned HTTP 200 with expected content types.
   - [x] Smoke-test the isolated app clone on `127.0.0.1:33334`: login page returned HTTP 200, `/api/setup` reported setup complete, malformed login returned 400, and anonymous backup request returned 401. The clone used a copied database and config; no installed data was changed.
+  - [x] Publish updater target `v0.1.1`; release archive workflow succeeded and attached `ora-v0.1.1.zip` with SHA-256 `4029ce98e1fc4b09a4cdbc63da740687db68e7f284cd2677fc0ed2ea91e30a9d`.
+  - [x] Run updater preflight/build against the installed source: checksum, install, Prisma generation, and production build passed; service stop was denied because session was not elevated. Service stayed Running, install remained at `0.1.0`, and database/backup files were not changed. Actual activation remains pending an elevated session.
   - [x] Verify synthetic ADMIN sign-in (`/api/auth/login` and `/api/me`) and manager-only SQLite snapshot export (`/api/backups`, HTTP 200, 90,112 bytes). The downloaded snapshot passed `PRAGMA integrity_check` and contained two users plus one synthetic time entry. Test servers were stopped; no persistent test service was installed.
   - [ ] Exercise the actual Windows service updater flow against a dedicated disposable service installation; the installed service was intentionally not stopped or altered.
 

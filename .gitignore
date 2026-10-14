@@ -46,3 +46,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local updater and release-publishing helper scripts (not part of the repo)
+/update-run-elevated.ps1
+/scripts/publish-release.ps1
