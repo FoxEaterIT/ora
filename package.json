@@ -1,6 +1,6 @@
 {
   "name": "ora",
-  "version": "0.1.1",
+  $10.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack --hostname 127.0.0.1",
