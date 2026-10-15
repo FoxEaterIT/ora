@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Clock3, DatabaseBackup, FolderKanban, LayoutDashboard, LogOut, Menu, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, X, Settings2 } from "lucide-react";
+import { Clock3, DatabaseBackup, FolderKanban, LayoutDashboard, LogOut, Menu, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, X, Settings2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME, APP_TAGLINE, AVAILABLE_THEMES, EFFECTIVE_DEFAULT_THEME, appLogoForTheme } from "@/lib/app-config";
 import { locales } from "@/i18n/messages";
@@ -25,6 +25,10 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   const [accountOpen, setAccountOpen] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
   const [update, setUpdate] = useState<{ currentVersion: string; latestVersion: string; releaseUrl: string } | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<{ phase: string; message: string; targetVersion: string } | null>(null);
+  const [updaterAvailable, setUpdaterAvailable] = useState(false);
+  const [updateError, setUpdateError] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const brandLogo = appLogoForTheme(theme);
 
   useEffect(() => {
@@ -55,6 +59,39 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
       .catch(() => undefined);
     return () => { active = false; };
   }, [manager]);
+
+  useEffect(() => {
+    if (!manager) return;
+    let active = true;
+    const poll = async () => {
+      try {
+        const response = await fetch("/api/update", { cache: "no-store" });
+        const data = await response.json();
+        if (!active) return;
+        setUpdaterAvailable(response.ok && data.available === true);
+        if (data.status) {
+          setUpdateStatus(data.status);
+          setUpdating(!["idle", "succeeded", "failed"].includes(data.status.phase));
+          if (["succeeded", "failed"].includes(data.status.phase)) setUpdateError(false);
+        }
+      } catch {
+        if (active && updating) setUpdateError(true);
+      }
+    };
+    void poll();
+    const interval = window.setInterval(() => { void poll(); }, 3000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [manager, updating]);
+
+  async function startUpdate() {
+    if (!window.confirm(messages.updateConfirm)) return;
+    setUpdateError(false);
+    try {
+      const response = await fetch("/api/update", { method: "POST" });
+      if (!response.ok) setUpdateError(true);
+      else setUpdateStatus({ phase: "queued", message: "", targetVersion: update?.latestVersion ?? "" });
+    } catch { setUpdateError(true); }
+  }
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -230,7 +267,13 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
       {update && (
         <div role="status" className="mx-auto mt-4 flex max-w-[1400px] flex-wrap items-center justify-between gap-3 rounded-xl border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-ink sm:mx-6 lg:mx-auto">
           <p>{messages.updateAvailable.replace("{version}", update.latestVersion).replace("{current}", update.currentVersion)}</p>
-          <a href={update.releaseUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand underline underline-offset-2">{messages.viewRelease}</a>
+          <div className="flex items-center gap-4">
+            <a href={update.releaseUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand underline underline-offset-2">{messages.viewRelease}</a>
+            {updaterAvailable && (!updateStatus || ["idle", "succeeded", "failed"].includes(updateStatus.phase)) && <button onClick={startUpdate} className="inline-flex items-center gap-2 rounded-lg bg-brand px-3 py-2 font-semibold text-brand-ink"><RefreshCw size={15} />{messages.installUpdate}</button>}
+          </div>
+          {updateStatus && !["idle", "succeeded"].includes(updateStatus.phase) && <p className="basis-full">{messages.updatePhase}: {updateStatus.message || updateStatus.phase}{updateError ? ` — ${messages.updateServiceUnavailable}` : ""}</p>}
+          {updateStatus?.phase === "succeeded" && <p className="basis-full">{messages.updateDone}</p>}
+          {!updaterAvailable && <p className="basis-full text-muted">{messages.updaterUnavailable}</p>}
         </div>
       )}
       <main className="mx-auto min-w-0 max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</main>

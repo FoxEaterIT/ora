@@ -158,6 +158,42 @@ if (-not (Get-Service -Name $serviceName -ErrorAction SilentlyContinue)) {
   if ((Get-Service -Name $serviceName).Status -ne "Running") { Start-Service -Name $serviceName }
 }
 
+$updaterServiceName = "OraTrackingServiceUpdater"
+$updaterExe = Join-Path $root "$updaterServiceName.exe"
+$updaterXml = Join-Path $root "$updaterServiceName.xml"
+if (-not (Get-Service -Name $updaterServiceName -ErrorAction SilentlyContinue)) {
+  if ($InstalledCopy) { throw "Run install.cmd from its downloaded source folder to register $updaterServiceName." }
+  $winSwVersion = "2.12.0"
+  $winSwUrl = "https://github.com/winsw/winsw/releases/download/v$winSwVersion/WinSW-x64.exe"
+  Invoke-WebRequest -Uri $winSwUrl -OutFile $updaterExe -TimeoutSec 60
+  $updaterStatus = Join-Path $env:ProgramData "Ora\updater-status.json"
+  $updaterLog = Join-Path $root "logs\updater"
+  New-Item -ItemType Directory -Path (Split-Path -Parent $updaterStatus) -Force | Out-Null
+  New-Item -ItemType Directory -Path $updaterLog -Force | Out-Null
+  $escapedRoot = [System.Security.SecurityElement]::Escape($root)
+  $escapedStatus = [System.Security.SecurityElement]::Escape($updaterStatus)
+  $xml = @"
+<service>
+  <id>$updaterServiceName</id>
+  <name>Ora Tracking Service Updater</name>
+  <description>Privileged local updater broker for Ora Time Tracking</description>
+  <executable>powershell.exe</executable>
+  <arguments>-NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$escapedRoot\scripts\updater-agent.ps1&quot; -InstallPath &quot;$escapedRoot&quot; -StatusPath &quot;$escapedStatus&quot;</arguments>
+  <workingdirectory>$escapedRoot</workingdirectory>
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="10 sec" />
+  <logpath>$updaterLog</logpath>
+</service>
+"@
+  [System.IO.File]::WriteAllText($updaterXml, $xml, (New-Object System.Text.UTF8Encoding $false))
+  & $updaterExe install
+  if ($LASTEXITCODE -ne 0) { throw "Could not install $updaterServiceName." }
+  & $updaterExe start
+  if ($LASTEXITCODE -ne 0) { throw "Could not start $updaterServiceName." }
+} elseif ((Get-Service -Name $updaterServiceName).Status -ne "Running") {
+  Start-Service -Name $updaterServiceName
+}
+
 $portMatch = [regex]::Match([System.IO.File]::ReadAllText($envFile), '(?m)^PORT="?(\d+)"?\s*$')
 $port = if ($portMatch.Success) { $portMatch.Groups[1].Value } else { "33333" }
 
@@ -167,3 +203,4 @@ Write-Host "Install folder: $root"
 Write-Host "Then open:      http://localhost:$port"
 Write-Host "First visit:    http://localhost:$port/setup"
 Write-Host "Windows service: $serviceName (installed and started)."
+Write-Host "Updater service: $updaterServiceName (installed and started)."

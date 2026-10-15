@@ -77,7 +77,9 @@ The local, Git-ignored `scripts/publish-release.ps1` helper can bump the patch, 
 .\scripts\publish-release.ps1 -Bump patch -Message "Fix timer conflict handling"
 ```
 
-Use `-Bump minor` or `-Bump major` for those version increments. Publishing is a real remote operation; the release event triggers the GitHub Actions workflow that attaches the Windows updater ZIP. If a network or GitHub error occurs mid-publish, inspect Git status, tags, and Releases before retrying.
+Use `-Bump minor` or `-Bump major` for those version increments. Publishing is a real remote operation; the release event triggers the GitHub Actions workflow that attaches the Windows updater ZIP. The helper refuses to write `package.json` unless the bumped file is still valid JSON and its `version` field matches the new tag. If a network or GitHub error occurs mid-publish, inspect Git status, tags, and Releases before retrying.
+
+> **Do not install v0.2.0 or v0.2.1.** Their published `package.json` is not valid JSON (`$10.2.0"` / `$10.2.1"` instead of `"version"`), so the archive workflow failed and those releases have no updater ZIP. The local helper that caused it is fixed. Install from this source with elevated `install.cmd`, then publish a newer release only after the working tree is committed and the archive workflow attaches `ora-v<version>.zip`.
 
 Run `npm test` to execute the automated regression tests.
 
@@ -121,6 +123,18 @@ Install IIS, URL Rewrite, and Application Request Routing (ARR), then enable pro
 ```
 
 Create an IIS site using that folder and bind the intended hostname and HTTPS certificate. Set `APP_ORIGIN` to the public URL, restart `OraTimeTrackingService`, and allow inbound traffic only to the proxy. The example assumes the default Ora port.
+
+### Updating Ora
+
+`install.cmd` registers a second Windows service, `OraTrackingServiceUpdater`. This broker service runs under a privileged account and accepts only fixed, locally-scoped update commands through a restricted named pipe (`OraTrackingServiceUpdater`). It cannot execute arbitrary commands, paths, or remote requests; the application path and status file are fixed at install time.
+
+When a release is available, an owner or admin sees an **Install update** button in the Shell header. Selecting it requests an update through `POST /api/update`; the web app never replaces its own files or stops its own service. The broker invokes the external updater (`scripts/update.ps1`), which stages a verified release copy, applies Prisma migrations to a copied database, then — during a brief outage — swaps files and restarts `OraTimeTrackingService` with rollback and backup retention intact. After Ora is healthy again, the updater provisions or refreshes `OraTrackingServiceUpdater` from the verified release scripts. Older installations without the auxiliary service are therefore enrolled as part of an update; the service's durable status under `%ProgramData%\\Ora` is preserved.
+
+> **Legacy installation without the updater service:** the in-app update trigger cannot reach a broker that is not installed. Run the external updater from an elevated PowerShell session. It automatically detects the Ora installation at `%APPDATA%\Ora` or from the running `OraTimeTrackingService` working directory, so no path argument is required. For example: `& "$env:APPDATA\Ora\scripts\update.ps1"`. The updater installs or refreshes `OraTrackingServiceUpdater` after a newer app release has been activated and `OraTimeTrackingService` is healthy. If no newer release exists, no service bootstrap occurs; install/update Ora to a newer release first. Do not run this against a production installation without a verified database backup and the normal maintenance precautions.
+
+While an update is in progress, the Shell polls `GET /api/update`, tolerates the temporary service interruption, and reports coarse phases (`queued`, `downloading`, `verifying`, `building`, `stopping`, `migrating`, `activating`, `restarting`, `succeeded`, `failed`) without exposing internal command output. Once the service is healthy again at the new version, the notice clears.
+
+> **Safety:** the web process cannot elevate itself. The update can only proceed while `OraTrackingServiceUpdater` is running with an account authorized to stop `OraTimeTrackingService` and manage the install directory. If the broker or update status is unavailable, the install/update button is disabled and the Shell reports that the updater service is unavailable.
 
 ## Contributing
 
