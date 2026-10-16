@@ -5,6 +5,7 @@ import { getCurrentUser, isManager } from "@/lib/auth";
 import { canTrack } from "@/lib/access";
 import { fullName } from "@/lib/users";
 import { requestMessages } from "@/i18n/request";
+import { desktopUserForAllowedRoute, desktopForbidden } from "@/lib/desktop-auth";
 
 const createEntrySchema = z.object({
   projectId: z.string().min(1),
@@ -15,7 +16,10 @@ const createEntrySchema = z.object({
 
 /** Lists the current user's entries, or filtered entries for managers. */
 export async function GET(request: Request) {
-  const me = await getCurrentUser();
+  const desktop = await desktopUserForAllowedRoute("/api/entries");
+  if (desktop.desktop && new URL(request.url).searchParams.get("mine") !== "1") return desktopForbidden();
+  const me = desktop.desktop ? desktop.user : await getCurrentUser();
+  if (desktop.desktop && !me) return desktopForbidden();
   if (!me) return NextResponse.json({ error: (await requestMessages()).api.unauthenticated }, { status: 401 });
 
   const url = new URL(request.url);
@@ -58,7 +62,9 @@ export async function GET(request: Request) {
 
 /** Starts either a timer or a manually entered, completed time entry. */
 export async function POST(request: Request) {
-  const me = await getCurrentUser();
+  const desktop = await desktopUserForAllowedRoute("/api/entries");
+  const me = desktop.desktop ? desktop.user : await getCurrentUser();
+  if (desktop.desktop && !me) return desktopForbidden();
   const t = await requestMessages();
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
 

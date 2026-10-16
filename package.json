@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack --hostname 127.0.0.1",
+    "desktop:dev": "next dev --turbopack --hostname 127.0.0.1 -p 33334",
     "build": "prisma migrate deploy && next build --turbopack",
     "start": "prisma migrate deploy && next start --hostname 127.0.0.1",
     "lint": "eslint",

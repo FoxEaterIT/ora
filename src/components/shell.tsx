@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Clock3, DatabaseBackup, FolderKanban, LayoutDashboard, LogOut, Menu, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, X, Settings2, RefreshCw } from "lucide-react";
@@ -17,6 +16,7 @@ const THEMES = AVAILABLE_THEMES;
 export function Shell({ user, children }: { user: SessionUser; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const desktopMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("desktop");
   const { locale, messages, setLocale } = useI18n();
   const manager = user.role !== "USER";
   const owner = user.role === "OWNER";
@@ -64,19 +64,30 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   useEffect(() => {
     if (!manager) return;
     let active = true;
+    let failures = 0;
+    let stopped = false;
     const poll = async () => {
+      if (stopped) return;
       try {
         const response = await fetch("/api/update", { cache: "no-store" });
+        if (!response.ok) throw new Error("Updater status request failed");
         const data = await response.json();
         if (!active) return;
-        setUpdaterAvailable(response.ok && data.available === true);
+        failures = 0;
+        setUpdaterAvailable(data.available === true);
         if (data.status) {
           setUpdateStatus(data.status);
           setUpdating(!["idle", "succeeded", "failed"].includes(data.status.phase));
           if (["succeeded", "failed"].includes(data.status.phase)) setUpdateError(false);
         }
       } catch {
-        if (active && updating) setUpdateError(true);
+        if (!active) return;
+        failures += 1;
+        if (updating) setUpdateError(true);
+        if (failures >= 3) {
+          stopped = true;
+          window.clearInterval(interval);
+        }
       }
     };
     void poll();
@@ -151,10 +162,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
               <Menu size={21} />
             </button>
           </div>
-          <Link href="/" className="flex items-center justify-center gap-2.5 justify-self-center text-ink" aria-label={`${APP_NAME} - ${messages.home}`}>
-            {brandLogo ? <Image src={brandLogo} alt="" width={144} height={36} unoptimized className="max-h-9 max-w-36 object-contain" /> : <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-lg font-bold text-brand-ink shadow-sm">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
-            <span className="text-lg font-semibold tracking-tight">{APP_NAME}</span>
-          </Link>
+          <div className="justify-self-center" aria-hidden="true" />
           <div className="flex items-center justify-end gap-1">
             {theme !== "dark" && (
               <div className="relative">
@@ -233,7 +241,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
           <aside className="absolute inset-y-0 left-0 flex w-[min(19rem,85vw)] flex-col border-r border-line bg-surface p-5 shadow-2xl">
             <div className="mb-8 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {brandLogo ? <Image src={brandLogo} alt="" width={144} height={40} unoptimized className="max-h-10 max-w-36 object-contain" /> : <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand text-lg font-bold text-brand-ink">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
+                {brandLogo ? <img src={brandLogo} alt="" width={144} height={40} className="max-h-10 max-w-36 object-contain" /> : <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand text-lg font-bold text-brand-ink">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
                 <div>
                   <p className="text-lg font-semibold tracking-tight text-ink">{APP_NAME}</p>
                   <p className="text-xs text-muted">{APP_TAGLINE}</p>

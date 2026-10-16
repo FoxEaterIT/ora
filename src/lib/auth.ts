@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
@@ -54,6 +54,9 @@ export async function clearSession() {
 }
 
 export async function getCurrentUser(): Promise<User | null> {
+  const requestHeaders = await headers();
+  const desktopToken = requestHeaders.get("x-ora-desktop-token");
+  if (desktopToken) return null;
   const store = await cookies();
   const userId = readSessionToken(store.get(SESSION_COOKIE_NAME)?.value);
   if (!userId) return null;

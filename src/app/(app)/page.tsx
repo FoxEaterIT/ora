@@ -1,5 +1,7 @@
 "use client";
 
+import { DesktopHandoff } from "@/components/desktop-handoff";
+
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { Button, Card, Empty, ErrorText, Field, Input, PageHeader, Select } from "@/components/ui";
@@ -80,6 +82,7 @@ export default function TimerPage() {
   return (
     <div>
       <PageHeader title={messages.timer} subtitle={`${t.todayRecorded} ${formatDuration(todayMs)}`} />
+      <DesktopHandoff />
       <Card className="mb-6">
         {running ? (
           <div className="flex flex-wrap items-center justify-between gap-4">

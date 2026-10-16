@@ -6,6 +6,7 @@ import { canTrack } from "@/lib/access";
 import { fullName } from "@/lib/users";
 import { requestMessages } from "@/i18n/request";
 import { canDeleteEntry } from "@/lib/entry-policy";
+import { desktopUserForAllowedRoute, desktopForbidden } from "@/lib/desktop-auth";
 
 const schema = z.object({
   projectId: z.string().optional(),
@@ -22,7 +23,9 @@ async function loadOwned(id: string, userId: string, manager: boolean, messages:
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const me = await getCurrentUser();
+  const desktop = await desktopUserForAllowedRoute("/api/entries");
+  const me = desktop.desktop ? desktop.user : await getCurrentUser();
+  if (desktop.desktop && !me) return desktopForbidden();
   const t = await requestMessages();
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
 
@@ -56,7 +59,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const me = await getCurrentUser();
+  const desktop = await desktopUserForAllowedRoute("/api/entries");
+  const me = desktop.desktop ? desktop.user : await getCurrentUser();
+  if (desktop.desktop && !me) return desktopForbidden();
   const t = await requestMessages();
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
 

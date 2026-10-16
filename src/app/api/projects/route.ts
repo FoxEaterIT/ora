@@ -6,6 +6,7 @@ import { getCurrentUser, isManager } from "@/lib/auth";
 import { fullName } from "@/lib/users";
 import { canCreateProject } from "@/lib/project-policy";
 import { requestMessages } from "@/i18n/request";
+import { desktopUserForAllowedRoute, desktopForbidden } from "@/lib/desktop-auth";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -16,7 +17,9 @@ const schema = z.object({
 });
 
 export async function GET() {
-  const me = await getCurrentUser();
+  const desktop = await desktopUserForAllowedRoute("/api/projects");
+  const me = desktop.desktop ? desktop.user : await getCurrentUser();
+  if (desktop.desktop && !me) return desktopForbidden();
   if (!me) return NextResponse.json({ error: (await requestMessages()).api.unauthenticated }, { status: 401 });
 
   if (isManager(me.role)) {
@@ -60,6 +63,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if ((await desktopUserForAllowedRoute("/api/projects")).desktop) return desktopForbidden();
   const me = await getCurrentUser();
   const t = await requestMessages();
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
