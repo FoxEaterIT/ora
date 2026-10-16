@@ -126,10 +126,10 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   const links = [
     { href: "/", label: messages.timer, icon: Timer },
     { href: "/timesheet", label: messages.myHours, icon: Clock3 },
+    { href: "/projects", label: messages.projects, icon: FolderKanban },
     ...(manager
       ? [
           { href: "/manage/report", label: messages.reports, icon: LayoutDashboard },
-          { href: "/manage/projects", label: messages.projects, icon: FolderKanban },
           { href: "/manage/teams", label: messages.teams, icon: UsersRound },
           { href: "/manage/people", label: messages.people, icon: Users },
           { href: "/manage/backups", label: messages.backups, icon: DatabaseBackup },

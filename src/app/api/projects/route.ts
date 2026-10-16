@@ -3,8 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_PROJECT_COLOR } from "@/lib/server-config";
 import { getCurrentUser, isManager } from "@/lib/auth";
-import { trackableProjects } from "@/lib/access";
 import { fullName } from "@/lib/users";
+import { canCreateProject } from "@/lib/project-policy";
 import { requestMessages } from "@/i18n/request";
 
 const schema = z.object({
@@ -39,15 +39,31 @@ export async function GET() {
     });
   }
 
-  const projects = await trackableProjects(me);
-  return NextResponse.json({ projects });
+  const projects = await prisma.project.findMany({
+    where: { archived: false },
+    include: {
+      team: true,
+      members: { where: { user: { deactivatedAt: null } }, include: { user: true } },
+      _count: { select: { entries: true } },
+    },
+    orderBy: { name: "asc" },
+  });
+  return NextResponse.json({
+    projects: projects.map((project) => ({
+      ...project,
+      members: project.members.map((member) => ({
+        ...member,
+        user: { id: member.user.id, name: fullName(member.user), email: member.user.email },
+      })),
+    })),
+  });
 }
 
 export async function POST(request: Request) {
   const me = await getCurrentUser();
   const t = await requestMessages();
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
-  if (!isManager(me.role)) return NextResponse.json({ error: t.api.forbidden }, { status: 403 });
+  if (!canCreateProject(me.role)) return NextResponse.json({ error: t.api.forbidden }, { status: 403 });
 
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: t.api.invalidProject }, { status: 400 });
@@ -57,10 +73,14 @@ export async function POST(request: Request) {
       name: parsed.data.name,
       description: parsed.data.description ?? "",
       color: parsed.data.color ?? DEFAULT_PROJECT_COLOR,
-      teamId: parsed.data.teamId || null,
-      members: parsed.data.memberIds?.length
-        ? { create: (await prisma.user.findMany({ where: { id: { in: parsed.data.memberIds }, deactivatedAt: null }, select: { id: true } })).map((user) => ({ userId: user.id })) }
-        : undefined,
+      teamId: isManager(me.role) ? parsed.data.teamId || null : null,
+      members: {
+        create: isManager(me.role)
+          ? (parsed.data.memberIds?.length
+              ? (await prisma.user.findMany({ where: { id: { in: parsed.data.memberIds }, deactivatedAt: null }, select: { id: true } })).map((user) => ({ userId: user.id }))
+              : [{ userId: me.id }])
+          : [{ userId: me.id }],
+      },
     },
     include: { team: true, members: true },
   });
