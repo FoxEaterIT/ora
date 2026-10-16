@@ -13,11 +13,11 @@ This checklist tracks the user-requested behavior that differs from the current 
 
 ## 2. Time-entry deletion
 
-- [ ] Allow a standard user to delete their own time entries; deny deletion of another user's entries.
-- [ ] Decide and enforce whether Owner/Admin may delete any user's entry; default to the user's stated rule (users delete their own entries) unless clarified.
-- [ ] Add a localized confirmation and deletion feedback to timer/timesheet UI.
-- [ ] Preserve editing of start/end and existing entry ownership rules.
-- [ ] Test owner, admin, and user authorization; verify deleted rows no longer appear in reports and project-deletion history checks.
+- [x] Allow a standard user to delete their own time entries; deny deletion of another user's entries.
+- [x] Enforce that Owner/Admin may delete only their own entries, matching the stated user-ownership rule.
+- [x] Add a localized confirmation and deletion feedback to the timesheet UI.
+- [x] Preserve editing of start/end and existing entry ownership rules.
+- [x] Test owner, admin, and user authorization policy and disposable SQLite deletion/readback behavior. Report visibility follows the shared TimeEntry table query; project-deletion history remains enforced by the existing foreign-key restriction.
 
 ## 3. Full-data Excel backup — Owner only
 

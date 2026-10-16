@@ -5,6 +5,7 @@ import { getCurrentUser, isManager } from "@/lib/auth";
 import { canTrack } from "@/lib/access";
 import { fullName } from "@/lib/users";
 import { requestMessages } from "@/i18n/request";
+import { canDeleteEntry } from "@/lib/entry-policy";
 
 const schema = z.object({
   projectId: z.string().optional(),
@@ -54,7 +55,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ entry: { ...entry, user: { ...entry.user, name: fullName(entry.user) } } });
 }
 
-export async function DELETE() {
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const me = await getCurrentUser();
   const t = await requestMessages();
-  return NextResponse.json({ error: t.api.deletionNotAllowed }, { status: 405 });
+  if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
+
+  const { id } = await params;
+  const loaded = await loadOwned(id, me.id, isManager(me.role), t);
+  if ("error" in loaded) return NextResponse.json({ error: loaded.error }, { status: loaded.status });
+  if (!canDeleteEntry(me.id, loaded.entry.userId)) return NextResponse.json({ error: t.api.ownEntriesOnly }, { status: 403 });
+
+  await prisma.timeEntry.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 }

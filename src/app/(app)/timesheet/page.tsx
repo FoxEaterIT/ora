@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button, Card, Empty, ErrorText, Field, Input, PageHeader, Select } from "@/components/ui";
 import { entryDuration, formatDuration, hours, toLocalInput } from "@/lib/utils";
 import { useI18n } from "@/i18n/provider";
@@ -26,6 +26,22 @@ export default function TimesheetPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
+
+  async function deleteEntry(id: string) {
+    if (!window.confirm(t.deleteConfirm)) return;
+    setError("");
+    const response = await fetch(`/api/entries/${id}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!response.ok) {
+      setError(data.error ?? t.deleteFailed);
+      return;
+    }
+    if (editing === id) {
+      setEditing(null);
+      setOpen(false);
+    }
+    await load();
+  }
 
   async function load() {
     const [p, e] = await Promise.all([
@@ -162,8 +178,11 @@ export default function TimesheetPage() {
                   </td>
                   <td className="px-4 py-3 font-mono">{formatDuration(entryDuration(entry.start, entry.end))}</td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => beginEdit(entry)} className="rounded-lg p-2 text-muted hover:bg-bg hover:text-ink">
+                    <button aria-label={t.editEntry} onClick={() => beginEdit(entry)} className="rounded-lg p-2 text-muted hover:bg-bg hover:text-ink">
                       <Pencil size={15} />
+                    </button>
+                    <button aria-label={t.deleteEntry} onClick={() => deleteEntry(entry.id)} className="rounded-lg p-2 text-danger hover:bg-bg">
+                      <Trash2 size={15} />
                     </button>
                   </td>
                 </tr>

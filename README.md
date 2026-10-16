@@ -4,7 +4,7 @@ Ora helps small teams track project hours, manage people and teams, and export r
 
 ## Features
 
-- Track time on assigned projects and review personal timesheets.
+- Track time on assigned projects, review personal timesheets, and delete your own time entries.
 - Let every active role create projects and assign multiple people; users can edit project details and assignments, while owners/admins manage teams, archive, and delete projects without time entries.
 - Filter reports and export CSV or Excel files.
 - Preserve time history when people are deactivated; download full SQLite backups.
