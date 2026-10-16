@@ -1,6 +1,6 @@
 # Ora installer for Windows.
 # Installs the application under %APPDATA%\Ora and prepares Node.js, npm, .env, and SQLite.
-# An existing installation .env is left untouched.
+# Existing configuration is preserved except for the explicitly selected listener port.
 
 param([switch]$InstalledCopy)
 
@@ -20,6 +20,37 @@ function Refresh-Path {
   $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
   $user = [Environment]::GetEnvironmentVariable("Path", "User")
   $env:Path = "$machine;$user"
+}
+
+function Test-PortAvailable([int]$Port) {
+  $listener = $null
+  try {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Port)
+    $listener.Start()
+    return $true
+  } catch { return $false }
+  finally { if ($listener) { $listener.Stop() } }
+}
+
+function Get-ConfiguredPort([string]$Path) {
+  if (-not (Test-Path $Path)) { return $null }
+  $match = [regex]::Match([System.IO.File]::ReadAllText($Path), '(?m)^PORT="?(\d+)"?\s*$')
+  if (-not $match.Success) { return $null }
+  return [int]$match.Groups[1].Value
+}
+
+function Select-InstallPort([string]$EnvPath) {
+  $existingPort = Get-ConfiguredPort $EnvPath
+  $defaultPort = if ($null -ne $existingPort -and $existingPort -ge 1 -and $existingPort -le 65535) { $existingPort } else { 33333 }
+  while ($true) {
+    $inputPort = Read-Host "Enter the Ora HTTP port (default $defaultPort; type Q to cancel)"
+    if ($inputPort -match '^[qQ]$') { throw "Installation cancelled by user." }
+    if ([string]::IsNullOrWhiteSpace($inputPort)) { $port = $defaultPort }
+    elseif ($inputPort -match '^\d+$' -and [long]$inputPort -ge 1 -and [long]$inputPort -le 65535) { $port = [int]$inputPort }
+    else { Write-Warning "Enter a TCP port between 1 and 65535."; continue }
+    if (-not (Test-PortAvailable $port)) { Write-Warning "Port $port is already bound. Choose another port."; continue }
+    return $port
+  }
 }
 
 function Get-NodeMajor {
@@ -91,9 +122,7 @@ if ($LASTEXITCODE -ne 0) { throw "npm install failed." }
 Write-Step "Preparing configuration"
 $envFile = Join-Path $root ".env"
 $exampleFile = Join-Path $root ".env.example"
-if (Test-Path $envFile) {
-  Write-Host ".env already exists. It was not changed."
-} else {
+if (-not (Test-Path $envFile)) {
   if (-not (Test-Path $exampleFile)) { throw ".env.example is missing." }
   $bytes = New-Object byte[] 32
   $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
@@ -111,10 +140,40 @@ if (Test-Path $envFile) {
   Write-Host "Owner email and password are empty: complete setup at /setup on first start."
 }
 
-Write-Step "Preparing persistent application data"
+$serviceName = "OraTimeTrackingService"
+$existingService = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+$configuredPort = Get-ConfiguredPort $envFile
+if ($existingService) {
+  if ($null -eq $configuredPort -or $configuredPort -lt 1 -or $configuredPort -gt 65535) { throw "Existing service has no valid PORT in .env. Repair the configuration before running the installer." }
+  $port = $configuredPort
+  Write-Host "Preserving existing Ora port $port."
+} else {
+  $port = Select-InstallPort $envFile
+  $envContent = [System.IO.File]::ReadAllText($envFile)
+  if ($envContent -match '(?m)^PORT=') { $envContent = [regex]::Replace($envContent, '(?m)^PORT=.*$', "PORT=`"$port`"") }
+  else { $envContent = $envContent.TrimEnd() + "`r`nPORT=`"$port`"`r`n" }
+  [System.IO.File]::WriteAllText($envFile, $envContent, (New-Object System.Text.UTF8Encoding $false))
+}
+
+Write-Step "Checking existing services, port, and database"
+$updaterServiceName = "OraTrackingServiceUpdater"
+$existingUpdater = Get-Service -Name $updaterServiceName -ErrorAction SilentlyContinue
+if ($existingService -and -not $existingService.Status.Equals("Stopped")) {
+  if (-not $InstalledCopy) { throw "$serviceName already exists. Use the updater for installations instead of reinstalling over the running service." }
+  throw "$serviceName must be stopped before the installed-copy installer runs."
+}
+if ($existingUpdater -and $existingUpdater.Status -ne "Stopped") {
+  throw "$updaterServiceName is running. Stop it before running the installer."
+}
+if ($existingService -and -not (Test-PortAvailable $port)) {
+  throw "Configured port $port is occupied while $serviceName is stopped. Identify the listener and repair the configuration before retrying."
+}
 $dbDirectory = Join-Path $root "prisma"
+$dbPath = Join-Path $dbDirectory "ORA.db"
+if ($existingService -and -not (Test-Path $dbPath)) { throw "Existing Ora service is registered but the database is missing: $dbPath" }
+if (-not $existingService -and (Test-Path $dbPath)) { throw "Database already exists without a registered Ora service: $dbPath. Refusing to initialize or overwrite it." }
 New-Item -ItemType Directory -Path $dbDirectory -Force | Out-Null
-Write-Host "Ora database will be stored at $(Join-Path $dbDirectory 'ORA.db')."
+Write-Host "Ora database path: $dbPath"
 
 Write-Step "Building production app and database schema"
 npx prisma generate
@@ -123,7 +182,6 @@ npm run build
 if ($LASTEXITCODE -ne 0) { throw "Production build failed." }
 
 Write-Step "Installing Windows service"
-$serviceName = "OraTimeTrackingService"
 $serviceExe = Join-Path $root "$serviceName.exe"
 $serviceConfig = Join-Path $root "$serviceName.xml"
 if (-not (Get-Service -Name $serviceName -ErrorAction SilentlyContinue)) {
@@ -132,8 +190,7 @@ if (-not (Get-Service -Name $serviceName -ErrorAction SilentlyContinue)) {
   $winSwUrl = "https://github.com/winsw/winsw/releases/download/v$winSwVersion/WinSW-x64.exe"
   Invoke-WebRequest -Uri $winSwUrl -OutFile $serviceExe -TimeoutSec 60
   $node = (Get-Command node.exe -ErrorAction Stop).Source
-  $portMatch = [regex]::Match([System.IO.File]::ReadAllText($envFile), '(?m)^PORT="?(\d+)"?\s*$')
-  $servicePort = if ($portMatch.Success) { $portMatch.Groups[1].Value } else { "33333" }
+  $servicePort = $port
   $xml = @"
 <service>
   <id>$serviceName</id>
@@ -193,9 +250,6 @@ if (-not (Get-Service -Name $updaterServiceName -ErrorAction SilentlyContinue)) 
 } elseif ((Get-Service -Name $updaterServiceName).Status -ne "Running") {
   Start-Service -Name $updaterServiceName
 }
-
-$portMatch = [regex]::Match([System.IO.File]::ReadAllText($envFile), '(?m)^PORT="?(\d+)"?\s*$')
-$port = if ($portMatch.Success) { $portMatch.Groups[1].Value } else { "33333" }
 
 Write-Host ""
 Write-Host "Ora is ready." -ForegroundColor Green

@@ -31,11 +31,13 @@ This checklist tracks the user-requested behavior that differs from the current 
 
 ## 4. Installer: interactive port selection and collision handling
 
-- [ ] Prompt for a valid TCP port during installation rather than relying on a preconfigured `.env` value or default `33333`.
-- [ ] Check whether the selected port is already bound/listening before writing configuration or registering services.
-- [ ] On collision or invalid input, explain the issue and prompt again; only stop for explicit user cancellation or an unrecoverable error.
-- [ ] Persist the accepted port to `.env` and use the same value in the service configuration and final URL.
-- [ ] Test valid input, malformed/out-of-range ports, occupied port, retry after collision, cancellation, and consistency between `.env`, WinSW XML, and displayed URL.
+- [x] Prompt for a valid TCP port during fresh installation, defaulting to configured value or `33333`; preserve `.env` `PORT` when the Ora service is already registered.
+- [x] Check whether the selected port is already bound before writing fresh-install configuration or registering services.
+- [x] On collision or invalid input, explain the issue and prompt again; allow explicit cancellation.
+- [x] Persist the accepted new-install port to `.env` and use that value in service configuration and final URL.
+- [ ] Test port prompt edge cases, repair/reinstall preservation, and `.env`/WinSW/URL consistency on a disposable Windows installation.
+- [x] Preflight the external updater against existing install path, services, WinSW configuration, configured port/listener, HTTP health, and database presence; after stopping the runner check lingering processes and SQLite sidecars, hash-check database copies, optionally run SQLite integrity checks when `sqlite3.exe` exists, and verify HTTP health after activation.
+- [ ] Exercise the complete updater flow with a disposable Windows service installation.
 
 ## 5. Windows service topology and installation path
 

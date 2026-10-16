@@ -10,6 +10,30 @@ $updaterServiceName = "OraTrackingServiceUpdater"
 function Assert-CommandSucceeded([string]$Name) {
   if ($LASTEXITCODE -ne 0) { throw "$Name failed with exit code $LASTEXITCODE." }
 }
+function Get-ConfiguredPort([string]$Path) {
+  $match = [regex]::Match([IO.File]::ReadAllText($Path), '(?m)^PORT="?(\d+)"?\s*$')
+  if (-not $match.Success) { throw "PORT is missing or invalid in $Path." }
+  $port = [int]$match.Groups[1].Value
+  if ($port -lt 1 -or $port -gt 65535) { throw "PORT $port is outside the valid TCP range." }
+  return $port
+}
+function Test-TcpPortListening([int]$Port) {
+  $client = New-Object Net.Sockets.TcpClient
+  try {
+    $task = $client.ConnectAsync([Net.IPAddress]::Loopback, $Port)
+    return $task.Wait(2000) -and $client.Connected
+  } catch { return $false }
+  finally { $client.Dispose() }
+}
+function Test-OraHttpHealth([int]$Port) {
+  try {
+    $response = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/api/me" -UseBasicParsing -TimeoutSec 8
+    return $response.StatusCode -eq 200 -or $response.StatusCode -eq 401
+  } catch {
+    if ($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -eq 401) { return $true }
+    return $false
+  }
+}
 function Set-UpdatePhase([string]$Phase, [string]$Message, [string]$Version = "") {
   $status = [ordered]@{ phase = $Phase; message = $Message; targetVersion = $Version; updatedAt = [DateTime]::UtcNow.ToString("o") }
   $temporary = "$StatusPath.tmp"
@@ -37,9 +61,25 @@ if (-not $InstallPath) {
 }
 
 if (-not (Test-Path (Join-Path $install "package.json"))) { throw "InstallPath is not an Ora installation: $install" }
-if (-not (Test-Path (Join-Path $install ".env"))) { throw "No .env found. Refusing to update." }
+$envFile = Join-Path $install ".env"
+if (-not (Test-Path $envFile)) { throw "No .env found. Refusing to update." }
+$dbDir = Join-Path $install "prisma"
+$activeDb = Join-Path $dbDir "ORA.db"
+if (-not (Test-Path $activeDb -PathType Leaf)) { throw "ORA.db is missing: $activeDb. Refusing to update." }
+$port = Get-ConfiguredPort $envFile
 $service = Get-Service -Name $serviceName -ErrorAction Stop
 if ($service.Status -ne "Running") { throw "$serviceName is not running. Start the Ora service before requesting an update." }
+if (-not (Test-TcpPortListening $port)) { throw "$serviceName is running but does not respond on configured port $port. Refusing to update an unhealthy installation." }
+if (-not (Test-OraHttpHealth $port)) { throw "Ora does not return the expected HTTP response on port $port. Refusing to update an unhealthy installation." }
+$serviceConfigPath = Join-Path $install "$serviceName.xml"
+if (-not (Test-Path $serviceConfigPath -PathType Leaf)) { throw "$serviceName configuration is missing: $serviceConfigPath" }
+[xml]$serviceConfigXml = [IO.File]::ReadAllText($serviceConfigPath)
+$serviceConfigText = [string]$serviceConfigXml.service.arguments
+$serviceWorkingDirectory = [string]$serviceConfigXml.service.workingdirectory
+if ($serviceConfigText -notmatch "--port\s+$port(?:\s|$)" -or [IO.Path]::GetFullPath($serviceWorkingDirectory).TrimEnd([char]92) -ine [IO.Path]::GetFullPath($install).TrimEnd([char]92)) { throw "$serviceName XML does not match the installation path and PORT=$port. Repair the service configuration before updating." }
+$updaterService = Get-Service -Name $updaterServiceName -ErrorAction SilentlyContinue
+if ($updaterService -and $updaterService.Status -ne "Running") { throw "$updaterServiceName is registered but not running. Repair it before requesting an update." }
+if (-not $updaterService) { Write-Warning "$updaterServiceName is not installed. This external elevated update can provision it; in-app updates are unavailable until then." }
 $wasRunning = $true
 $current = Get-Content (Join-Path $install "package.json") -Raw | ConvertFrom-Json
 $currentVersion = [string]$current.version
@@ -103,26 +143,42 @@ try {
     Stop-Service -Name $serviceName -Force
     (Get-Service -Name $serviceName).WaitForStatus("Stopped", [TimeSpan]::FromSeconds(90))
   }
-  $updaterServiceName = "OraTrackingServiceUpdater"
   $stillRunning = Get-CimInstance Win32_Process -Filter "name = 'node.exe'" | Where-Object { $_.CommandLine -like "*$install*" }
   if ($stillRunning) { throw "Ora node process is still running (PID $($stillRunning.ProcessId)); refusing to access SQLite." }
-  if (-not (Test-Path $activeDb)) { throw "ORA.db is missing: $activeDb" }
+  if (-not (Test-Path $activeDb -PathType Leaf)) { throw "ORA.db is missing: $activeDb" }
   foreach ($suffix in @("-wal", "-shm")) {
-    if (Test-Path "$activeDb$suffix") { throw "SQLite sidecar exists: $activeDb$suffix. Database was not copied; investigate before retrying." }
+    if (Test-Path "$activeDb$suffix") { throw "SQLite sidecar exists after $serviceName stopped: $activeDb$suffix. Database was not copied; investigate before retrying." }
+  }
+  $sqlite = Get-Command sqlite3.exe -ErrorAction SilentlyContinue
+  if ($sqlite) {
+    $integrity = & $sqlite.Source $activeDb "PRAGMA integrity_check;" 2>&1
+    if ($LASTEXITCODE -ne 0 -or (($integrity -join "`n").Trim() -ne "ok")) { throw "Live SQLite integrity_check failed: $($integrity -join ' ')" }
+  } else {
+    Write-Warning "sqlite3.exe is unavailable; SQLite integrity_check could not be run. The staged migration will still be checked before activation."
   }
   if (Test-Path $backupRoot) { throw "Application backup already exists: $backupRoot. Preserve it before retrying." }
 
   New-Item -ItemType Directory -Path (Split-Path $stagedDb -Parent) -Force | Out-Null
   Set-UpdatePhase "migrating" "Migrating a staged database copy." $targetVersion
    Copy-Item $activeDb $stagedDb -Force
+  if ((Get-FileHash $activeDb -Algorithm SHA256).Hash -ne (Get-FileHash $stagedDb -Algorithm SHA256).Hash) { throw "Staged database hash mismatch. Live database was not migrated." }
   Push-Location $releaseRoot
   try {
     npx prisma migrate deploy
     Assert-CommandSucceeded "prisma migrate deploy"
   } finally { Pop-Location }
+  if ($sqlite) {
+    $stagedIntegrity = & $sqlite.Source $stagedDb "PRAGMA integrity_check;" 2>&1
+    if ($LASTEXITCODE -ne 0 -or (($stagedIntegrity -join "`n").Trim() -ne "ok")) { throw "Migrated SQLite integrity_check failed: $($stagedIntegrity -join ' ')" }
+  }
 
+  if (-not (Test-Path $stagedDb -PathType Leaf) -or (Get-Item $stagedDb).Length -eq 0) { throw "Migrated staged database is missing or empty. Live database has not been replaced." }
+  foreach ($suffix in @("-wal", "-shm")) {
+    if (Test-Path "$stagedDb$suffix") { throw "Migrated SQLite database has a sidecar: $stagedDb$suffix. Live database has not been replaced." }
+  }
   # Keep an immutable, per-release copy alongside the fixed one-generation backup.
   Copy-Item $activeDb $backupDb -Force
+  if ((Get-FileHash $activeDb -Algorithm SHA256).Hash -ne (Get-FileHash $backupDb -Algorithm SHA256).Hash) { throw "Pre-update database backup verification failed. Live database has not been replaced." }
   New-Item -ItemType Directory -Path $backupRoot | Out-Null
   Copy-Item $activeDb (Join-Path $backupRoot "ORA.db")
   Copy-Item (Join-Path $install ".env") (Join-Path $backupRoot ".env")
@@ -157,6 +213,15 @@ try {
     Start-Service -Name $serviceName
     (Get-Service -Name $serviceName).WaitForStatus("Running", [TimeSpan]::FromSeconds(90))
   }
+}
+
+$healthDeadline = [DateTime]::UtcNow.AddSeconds(90)
+do {
+  if (Test-TcpPortListening $port -and (Test-OraHttpHealth $port)) { break }
+  Start-Sleep -Seconds 3
+} while ([DateTime]::UtcNow -lt $healthDeadline)
+if (-not (Test-TcpPortListening $port) -or -not (Test-OraHttpHealth $port)) {
+  throw "Updated $serviceName is running but failed HTTP health checks on configured port $port. Preserve backups and investigate before retrying."
 }
 
 # Provision the auxiliary updater only after the main application has restarted successfully.
