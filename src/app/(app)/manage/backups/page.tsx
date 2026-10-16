@@ -25,7 +25,7 @@ export default function BackupsPage() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = response.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] || "ora-backup.db";
+      anchor.download = response.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] || "ora-full-backup.zip";
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();

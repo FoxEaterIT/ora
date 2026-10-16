@@ -19,6 +19,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   const router = useRouter();
   const { locale, messages, setLocale } = useI18n();
   const manager = user.role !== "USER";
+  const owner = user.role === "OWNER";
   const [theme, setTheme] = useState(EFFECTIVE_DEFAULT_THEME);
   const [lightTheme, setLightTheme] = useState(EFFECTIVE_DEFAULT_THEME);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -132,7 +133,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
           { href: "/manage/report", label: messages.reports, icon: LayoutDashboard },
           { href: "/manage/teams", label: messages.teams, icon: UsersRound },
           { href: "/manage/people", label: messages.people, icon: Users },
-          { href: "/manage/backups", label: messages.backups, icon: DatabaseBackup },
+          ...(owner ? [{ href: "/manage/backups", label: messages.backups, icon: DatabaseBackup }] : []),
         ]
       : []),
   ];

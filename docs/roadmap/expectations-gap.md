@@ -21,13 +21,13 @@ This checklist tracks the user-requested behavior that differs from the current 
 
 ## 3. Full-data Excel backup — Owner only
 
-- [ ] Change `/api/backups` authorization from manager-only to Owner-only and hide the page/link for Admin.
-- [ ] Generate three Excel workbooks: one for projects, one for people, and one for teams.
-- [ ] In each workbook, create one worksheet per corresponding entity (project/person/team), with validated unique worksheet names within Excel's 31-character limit.
-- [ ] Include each entity's relevant metadata and its related time entries; include person/team/project identity fields so every entry remains attributable.
-- [ ] Package the three workbooks into one ZIP download and label the UI action as a complete Excel backup, distinct from a raw SQLite snapshot.
-- [ ] Decide whether to retain a separate SQLite snapshot feature; if retained, name and authorize it explicitly rather than conflating it with the Excel backup.
-- [ ] Test Owner-only access (401 anonymous, 403 USER/ADMIN), empty datasets, workbook/sheet counts, time-entry completeness, safe sheet names, and ZIP contents.
+- [x] Change `/api/backups` authorization from manager-only to Owner-only and hide the page/link for Admin.
+- [x] Generate three Excel workbooks: one for projects, one for people, and one for teams.
+- [x] In each workbook, create worksheets for each corresponding entity with validated unique worksheet names within Excel's 31-character limit.
+- [x] Include entity metadata and related time entries with person/team/project identity fields.
+- [x] Package the three workbooks into one ZIP download and label the UI action as a complete Excel backup, distinct from a raw SQLite snapshot.
+- [x] Retain no in-app SQLite snapshot in this action; the existing offline/administrator database backup and restore guidance remains documented separately.
+- [x] Test Owner-only policy (anonymous 401, USER/ADMIN 403), empty datasets, workbook/sheet counts, related time-entry completeness, safe unique sheet names, and ZIP contents. Route smoke tests against a running authenticated application remain deployment validation.
 
 ## 4. Installer: interactive port selection and collision handling
 
