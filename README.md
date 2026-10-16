@@ -11,6 +11,7 @@ Ora helps small teams track project hours, manage people and teams, and export r
 - [Updating Ora](#updating-ora)
 - [Reports and backups](#reports-and-backups)
 - [Desktop panel preview](#desktop-panel-preview)
+- [Desktop release readiness plan](docs/desktop-release-checklist.md)
 
 ## Features
 
@@ -97,7 +98,7 @@ Create an IIS site using that folder and bind the intended hostname and HTTPS ce
 
 A preliminary Windows Tauri panel scaffold is available in [`src-tauri/`](src-tauri/README.md). The interface is focused on time tracking, with branding and theme controls in the header and a user menu for account details and sign-out. Sign-in uses the Ora account email and password through the desktop login API; the older browser handoff flow is not required for this preview. For local testing, run `npm run seed:desktop-demo` to create or reset two demo accounts: `owner.demo@ora.local` / `OraDemoOwner2026!` and `user.demo@ora.local` / `OraDemoUser2026!`. These are local-only test credentials and must never be used in production. In the Tauri window, the standard Ora app UI is used with its header brand hidden; the rest of the web styling and layout remain unchanged.
 
-> **Preview status:** This milestone is not production-ready or part of the Windows installer/updater. Desktop sessions remain process-local, so restart/multiple-instance behavior is unreliable; token persistence and deployment security are not production-hardened. Remote LAN servers may use HTTP by explicit deployment choice, but traffic is unencrypted and must be limited to a trusted network; HTTPS is recommended. Do not distribute the scaffold.
+> **Preview status:** This milestone is not production-ready or part of the Windows installer/updater. The release-hardening roadmap is tracked in [`docs/desktop-release-checklist.md`](docs/desktop-release-checklist.md). Desktop sessions remain process-local, so restart/multiple-instance behavior is unreliable; token persistence and deployment security are not production-hardened. Remote LAN servers may use HTTP by explicit deployment choice, but traffic is unencrypted and must be limited to a trusted network; HTTPS is recommended. Do not distribute the scaffold.
 
 ## Reports and backups
 

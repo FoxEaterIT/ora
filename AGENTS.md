@@ -74,6 +74,7 @@ When updating `README.md`, follow the presentation rule in **Structure**: pure M
 
 ### Status / history
 
+- 2026-10-16: added `docs/desktop-release-checklist.md`, a phased security, authentication, packaging, updater, and release-validation plan for Tauri; linked it from the user and desktop documentation. The desktop remains a preview until every release gate is met.
 - 2026-10-16: started a Tauri 2 Windows desktop-panel preview in `src-tauri/` for project selection, own-entry timer control and recent-entry edits/deletion. Handoff code redemption uses POST, desktop credentials are limited by endpoint checks to project listing, own-entry operations, and logout; the UI escapes project/user-controlled text and supports session revocation. Grants/sessions remain process-local and HTTP is allowed for remote LAN use by explicit decision, but is unencrypted; do not treat as production-ready. Installer/updater integration is deferred. The Tauri window should preserve the standard Ora web UI and styling while hiding header navigation and brand in desktop mode (`?desktop`); direct login is via `/api/desktop/login` and demo accounts are created by `npm run seed:desktop-demo` for local use only. Manager update polling halts after three consecutive request/HTTP/parse errors. See `src-tauri/README.md` and the README preview warning.
 
 - 2026-10-12: defined Ora light presets (default, blue, green, purple, orange), one dark theme, and header theme selection.
