@@ -54,4 +54,4 @@ next-env.d.ts
 #Debug Tauri
 src-tauri/target/debug
 scripts/seed-desktop-demo.ts
-docs
+docs/*
