@@ -1,0 +1,91 @@
+name: Build Ora Desktop installers
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing published GitHub Release tag (for example v1.2.3)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Validate desktop release
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw 'Tag must use stable vMAJOR.MINOR.PATCH format.' }
+          $version = $Matches[1]
+          $tauri = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $cargo = Get-Content src-tauri/Cargo.toml -Raw
+          if ($tauri.version -ne $version) { throw "Tauri version $($tauri.version) does not match tag $version." }
+          if ($cargo -notmatch '(?m)^version\s*=\s*"([^"]+)"' -or $Matches[1] -ne $version) { throw 'Cargo.toml version does not match the release tag.' }
+          $release = gh release view $tag --json isDraft,isPrerelease,body
+          if ($LASTEXITCODE -ne 0) { throw 'The tagged GitHub Release must already exist.' }
+          $metadata = $release | ConvertFrom-Json
+          if ($metadata.isDraft -or $metadata.isPrerelease) { throw 'Desktop installers are built only for published stable releases.' }
+          if ($metadata.body -notmatch '(?im)^Ora-Desktop-Release:\s*true\s*$') { throw 'Release notes must contain the exact line: Ora-Desktop-Release: true' }
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install Rust dependencies
+        run: cargo install tauri-cli --locked
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build MSI and NSIS installers
+        working-directory: src-tauri
+        run: cargo tauri build --target x86_64-pc-windows-msvc --bundles msi,nsis --ci
+
+      - name: Rename installers and generate SHA-256 manifest
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          $version = $env:RELEASE_TAG -replace '^v', ''
+          $bundle = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle"
+          $msi = Get-ChildItem "$bundle/msi/*.msi" | Select-Object -First 1
+          $nsis = Get-ChildItem "$bundle/nsis/*-setup.exe" | Select-Object -First 1
+          if (-not $msi -or -not $nsis) { throw 'Expected both MSI and NSIS installer outputs.' }
+          $buildInfo = Get-Content src-tauri/frontend-dist/build-info.json -Raw | ConvertFrom-Json
+          if ($buildInfo.appVersion -ne $version -or $buildInfo.frontendVersion -ne (Get-Content package.json -Raw | ConvertFrom-Json).version) { throw 'Embedded desktop/frontend build metadata does not match the release sources.' }
+          $out = Join-Path $PWD 'desktop-release-assets'
+          New-Item -ItemType Directory -Path $out | Out-Null
+          Copy-Item $msi.FullName (Join-Path $out "ora-desktop-v$version.msi")
+          Copy-Item $nsis.FullName (Join-Path $out "ora-desktop-v$version-setup.exe")
+          Get-ChildItem $out -File | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)" | Add-Content -Path (Join-Path $out 'SHA256SUMS.txt') -Encoding ascii
+          }
+
+      - name: Attach installers and checksums to the existing release
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload $env:RELEASE_TAG desktop-release-assets/* --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to attach desktop release assets.' }

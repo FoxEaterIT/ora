@@ -73,15 +73,17 @@ Implementation status: complete by project decision. Windows-native keyring comm
 
 ## Phase 5 — Installer, updater, and operations
 
-- [ ] Choose distribution channel: standalone signed desktop installer, Ora server installer download, or both. Keep the desktop client decoupled from server installation unless an explicit deployment design says otherwise.
-- [ ] Define signed update metadata, signature verification, rollback, interrupted-update recovery, and supported-version policy. Do not reuse the web-service updater blindly for the client.
-- [ ] Decide update UX and whether updates are automatic, user-confirmed, or administrator-managed.
-- [ ] Define uninstall behavior, including whether secure tokens and preferences are deleted and how user data is handled.
-- [ ] Document firewall/proxy requirements, server URL configuration, HTTPS certificates, offline behavior, and support diagnostics without secrets.
-- [ ] Publish checksums and signed artifacts; protect signing keys and release credentials.
-- [ ] Prepare a staged rollout and a way to stop distribution/updates if a critical issue is found.
+Approved decisions and implementation/validation plan: [`desktop-phase5-plan.md`](desktop-phase5-plan.md).
 
-**Gate:** install, upgrade, rollback, uninstall, and recovery tested on clean and previously upgraded machines.
+- [x] Add a manual-only Windows workflow for MSI/NSIS installers on existing stable GitHub releases marked `Ora-Desktop-Release: true`; keep them separate from the Ora server installer and existing server ZIP/updater. Local x64 MSI/NSIS packaging succeeded; workflow execution remains unverified. The workflow is started manually from GitHub Actions after a matching tagged release exists; `scripts/publish-release.ps1` does not trigger it.
+- [x] Generate per-installer SHA-256 checksums and attach installers plus `SHA256SUMS.txt` to the matching GitHub Release. The authenticated Ora app displays manual links and the GitHub asset digest. A GitHub-provided digest is not an independent authenticity proof; workflow output remains unverified.
+- [ ] Keep the desktop notice independent of manager-only web-server update controls; localize it in EN/IT/ES, fail closed on invalid metadata, and degrade gracefully when GitHub is unavailable.
+- [ ] Confirm install-over-install preserves the user's secure session and preferences; clean uninstall removes only Ora Desktop's fixed keyring token and its own local preferences, not server/time data or unrelated app data.
+- [ ] Document manual rollback/recovery, offline behavior, WebView2, firewall/proxy, server URL, HTTPS and explicit unencrypted HTTP confirmation, and safe diagnostics.
+- [ ] Define pilot rollout, monitoring, server-side withdrawal of the download, GitHub release withdrawal notes, and re-enable criteria. No automatic updater or client kill switch.
+- [ ] Verify Windows packaging workflow, checksums, authenticated notice, GitHub outage/malformed metadata handling, MSI/NSIS install/upgrade/uninstall/reinstall, and manual recovery. Clean and previously upgraded Windows-machine results must be recorded as evidence; builds alone do not satisfy this gate.
+
+**Gate:** Phase 5 may be closed by project decision with unrun Windows install/upgrade/uninstall/recovery tests explicitly documented as unverified. This does not satisfy the Phase 6 release-validation gate.
 
 ## Phase 6 — Release validation
 

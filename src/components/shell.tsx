@@ -26,6 +26,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   const [accountOpen, setAccountOpen] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
   const [update, setUpdate] = useState<{ currentVersion: string; latestVersion: string; releaseUrl: string } | null>(null);
+  const [desktopRelease, setDesktopRelease] = useState<{ version: string; releaseUrl: string; assets: { name: string; url: string; digest: string }[] } | null>(null);
   const [updateStatus, setUpdateStatus] = useState<{ phase: string; message: string; targetVersion: string } | null>(null);
   const [updaterAvailable, setUpdaterAvailable] = useState(false);
   const [updateError, setUpdateError] = useState(false);
@@ -46,6 +47,16 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
     localStorage.setItem("ora-theme", saved);
     localStorage.setItem("ora-light-theme", savedLight);
   }, []);
+
+  useEffect(() => {
+    if (desktopMode) return;
+    let active = true;
+    fetch("/api/desktop-release", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => { if (active && data?.version && Array.isArray(data.assets)) setDesktopRelease(data); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [desktopMode]);
 
   useEffect(() => {
     if (!manager) return;
@@ -273,6 +284,16 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
         </div>
       )}
 
+      {desktopRelease && !desktopMode && (
+        <div role="status" className="mx-auto mt-4 max-w-[1400px] rounded-xl border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-ink sm:mx-6 lg:mx-auto">
+          <p className="font-semibold">{messages.desktopReleaseAvailable.replace("{version}", desktopRelease.version)}</p>
+          <a href={desktopRelease.releaseUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand underline underline-offset-2">{messages.viewRelease}</a>
+          <ul className="mt-2 grid gap-2">
+            {desktopRelease.assets.map((asset) => <li key={asset.name}>{asset.name}: <a href={asset.url} target="_blank" rel="noreferrer" className="text-brand underline">{messages.downloadDesktop}</a> — SHA-256 <code className="break-all">{asset.digest}</code></li>)}
+          </ul>
+          <p className="mt-1 text-muted">{messages.desktopDigestNote}</p>
+        </div>
+      )}
       {update && (
         <div role="status" className="mx-auto mt-4 flex max-w-[1400px] flex-wrap items-center justify-between gap-3 rounded-xl border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-ink sm:mx-6 lg:mx-auto">
           <p>{messages.updateAvailable.replace("{version}", update.latestVersion).replace("{current}", update.currentVersion)}</p>
