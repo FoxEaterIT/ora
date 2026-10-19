@@ -27,6 +27,29 @@ model User {
   memberships TeamMember[]
   projects    ProjectMember[]
   entries     TimeEntry[]
+  desktopSessions DesktopSession[]
+}
+
+model DesktopLoginAttempt {
+  key         String   @id
+  failures    Int      @default(0)
+  blockedUntil DateTime
+  updatedAt   DateTime @updatedAt
+}
+
+// Opaque desktop bearer tokens are stored only as hashes. A partial unique index keeps one active session per user.
+model DesktopSession {
+  id            String    @id @default(cuid())
+  userId        String
+  tokenHash     String    @unique
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokeReason  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }
 
 model Team {

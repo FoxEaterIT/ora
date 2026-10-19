@@ -1,1 +1,1 @@
-{}
+{"desktop-main":{"identifier":"desktop-main","description":"Allow the desktop window to invoke only the fixed keyring session commands.","local":true,"windows":["main"],"permissions":["allow-session-credentials"]}}

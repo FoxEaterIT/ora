@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isManager } from "@/lib/auth";
 import { requestMessages } from "@/i18n/request";
 import { canAssignProjectMembers, canDeleteProject } from "@/lib/project-policy";
+import { desktopForbidden, desktopUserForAllowedRoute } from "@/lib/desktop-auth";
 
 const userPatchSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
@@ -22,7 +23,9 @@ const schema = z.object({
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const me = await getCurrentUser();
+  const desktop = await desktopUserForAllowedRoute("/api/projects");
+  const me = desktop.desktop ? desktop.user : await getCurrentUser();
+  if (desktop.desktop && !me) return desktopForbidden();
   const t = await requestMessages();
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
 
@@ -35,6 +38,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const parsed = (manager ? schema : userPatchSchema).safeParse(body);
   const managerData = manager ? schema.safeParse(body) : null;
   if (!parsed.success) return NextResponse.json({ error: manager ? t.api.invalidData : t.api.forbidden }, { status: manager ? 400 : 403 });
+  if (desktop.desktop && Object.keys(parsed.data).some((key) => !["name", "description", "color", "memberIds", "teamId", "archived"].includes(key))) return desktopForbidden();
 
   const project = await prisma.$transaction(async (tx) => {
     if (parsed.data.memberIds) {
@@ -59,7 +63,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const me = await getCurrentUser();
+  const desktop = await desktopUserForAllowedRoute("/api/projects");
+  const me = desktop.desktop ? desktop.user : await getCurrentUser();
+  if (desktop.desktop && !me) return desktopForbidden();
   const t = await requestMessages();
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
   if (!isManager(me.role)) return NextResponse.json({ error: t.api.forbidden }, { status: 403 });

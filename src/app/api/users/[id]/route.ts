@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { OWNER_EMAIL } from "@/lib/server-config";
 import { getCurrentUser, isManager, publicUser } from "@/lib/auth";
+import { revokeDesktopSessionsForUser } from "@/lib/desktop-session";
 import { requestMessages } from "@/i18n/request";
 
 const schema = z.object({
@@ -47,14 +48,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   try {
-    const user = await prisma.user.update({
-      where: { id },
-      data: {
-        ...(parsed.data.role ? { role: parsed.data.role } : {}),
-        ...(email ? { email } : {}),
-        ...(parsed.data.resetPassword ? { passwordHash: null } : {}),
-        ...(parsed.data.reactivate ? { deactivatedAt: null } : {}),
-      },
+    const user = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id },
+        data: {
+          ...(parsed.data.role ? { role: parsed.data.role } : {}),
+          ...(email ? { email } : {}),
+          ...(parsed.data.resetPassword ? { passwordHash: null } : {}),
+          ...(parsed.data.reactivate ? { deactivatedAt: null } : {}),
+        },
+      });
+      if (parsed.data.role || parsed.data.resetPassword) {
+        await revokeDesktopSessionsForUser(updated.id, parsed.data.resetPassword ? "password-reset" : "role-changed", tx);
+      }
+      return updated;
     });
     return NextResponse.json({ user: publicUser(user) });
   } catch (error) {
@@ -82,6 +89,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     return NextResponse.json({ error: t.api.ownerDeletesAdmin }, { status: 403 });
   }
 
-  await prisma.user.update({ where: { id }, data: { deactivatedAt: new Date() } });
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({ where: { id }, data: { deactivatedAt: new Date() } });
+    await revokeDesktopSessionsForUser(id, "deactivated", tx);
+  });
   return NextResponse.json({ ok: true });
 }

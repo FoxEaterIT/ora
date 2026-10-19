@@ -5,7 +5,7 @@ import { getCurrentUser, isManager } from "@/lib/auth";
 import { canTrack } from "@/lib/access";
 import { fullName } from "@/lib/users";
 import { requestMessages } from "@/i18n/request";
-import { desktopUserForAllowedRoute, desktopForbidden } from "@/lib/desktop-auth";
+import { desktopUserForAllowedRoute, desktopForbidden, runWithDesktopRequest } from "@/lib/desktop-auth";
 
 const createEntrySchema = z.object({
   projectId: z.string().min(1),
@@ -16,8 +16,9 @@ const createEntrySchema = z.object({
 
 /** Lists the current user's entries, or filtered entries for managers. */
 export async function GET(request: Request) {
+  return runWithDesktopRequest(request, async () => {
   const desktop = await desktopUserForAllowedRoute("/api/entries");
-  if (desktop.desktop && new URL(request.url).searchParams.get("mine") !== "1") return desktopForbidden();
+  if (desktop.desktop && (new URL(request.url).searchParams.get("mine") !== "1" || new URL(request.url).searchParams.size !== 1)) return desktopForbidden();
   const me = desktop.desktop ? desktop.user : await getCurrentUser();
   if (desktop.desktop && !me) return desktopForbidden();
   if (!me) return NextResponse.json({ error: (await requestMessages()).api.unauthenticated }, { status: 401 });
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
     ...(from || to ? { start: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(to) } : {}) } } : {}),
     ...(projectIds.length ? { projectId: { in: projectIds } } : {}),
     ...(teamIds.length ? { project: { teamId: { in: teamIds } } } : {}),
-    ...(!isManager(me.role) || mine ? { userId: me.id } : userIds.length ? { userId: { in: userIds } } : {}),
+    ...(desktop.desktop || !isManager(me.role) || mine ? { userId: me.id } : userIds.length ? { userId: { in: userIds } } : {}),
     ...(isManager(me.role) && !mine ? (
       includeDeactivated
         ? (userIds.length ? { user: { OR: [{ deactivatedAt: null }, { id: { in: userIds } }] } } : {})
@@ -57,11 +58,13 @@ export async function GET(request: Request) {
       ...entry,
       user: { ...entry.user, name: fullName(entry.user) },
     })),
+  }, desktop.desktop ? { headers: { "Cache-Control": "no-store" } } : undefined);
   });
 }
 
 /** Starts either a timer or a manually entered, completed time entry. */
 export async function POST(request: Request) {
+  return runWithDesktopRequest(request, async () => {
   const desktop = await desktopUserForAllowedRoute("/api/entries");
   const me = desktop.desktop ? desktop.user : await getCurrentUser();
   if (desktop.desktop && !me) return desktopForbidden();
@@ -94,11 +97,12 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ entry: { ...entry, user: { ...entry.user, name: fullName(entry.user) } } }, { status: 201 });
+    return NextResponse.json({ entry: { ...entry, user: { ...entry.user, name: fullName(entry.user) } } }, { status: 201, ...(desktop.desktop ? { headers: { "Cache-Control": "no-store" } } : {}) });
   } catch (error) {
     if (error instanceof Error && error.message.includes("Unique constraint failed")) {
       return NextResponse.json({ error: t.api.timerAlreadyRunning }, { status: 409 });
     }
     throw error;
   }
+  });
 }

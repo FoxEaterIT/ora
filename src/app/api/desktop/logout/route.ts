@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { revokeDesktopSession } from "@/app/api/desktop/handoff/route";
+import { revokeDesktopSession } from "@/lib/desktop-session";
+import { requestMessages } from "@/i18n/request";
+
+const noStore = { "Cache-Control": "no-store", Pragma: "no-cache" };
 
 export async function POST(request: Request) {
-  const origin = request.headers.get("origin");
-  if (origin) return NextResponse.json({ error: "Invalid request" }, { status: 403 });
   const token = request.headers.get("x-ora-desktop-token");
-  if (!token) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-  await revokeDesktopSession(token);
-  return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+  if (!token) return NextResponse.json({ error: (await requestMessages()).api.unauthenticated }, { status: 401, headers: noStore });
+  await revokeDesktopSession(token, "logout");
+  return NextResponse.json({ ok: true }, { headers: noStore });
 }

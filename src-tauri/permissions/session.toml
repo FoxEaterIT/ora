@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-session-credentials"
+description = "Allows the fixed desktop session credential commands."
+commands.allow = ["save_desktop_token", "load_desktop_token", "delete_desktop_token"]

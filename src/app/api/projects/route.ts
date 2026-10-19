@@ -16,55 +16,47 @@ const schema = z.object({
   memberIds: z.array(z.string()).optional(),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
   const desktop = await desktopUserForAllowedRoute("/api/projects");
+  if (desktop.desktop && new URL(request.url).searchParams.size > 0) return desktopForbidden();
   const me = desktop.desktop ? desktop.user : await getCurrentUser();
   if (desktop.desktop && !me) return desktopForbidden();
   if (!me) return NextResponse.json({ error: (await requestMessages()).api.unauthenticated }, { status: 401 });
 
-  if (isManager(me.role)) {
-    const projects = await prisma.project.findMany({
-      include: {
-        team: true,
-        members: { where: { user: { deactivatedAt: null } }, include: { user: true } },
-        _count: { select: { entries: true } },
-      },
-      orderBy: [{ archived: "asc" }, { name: "asc" }],
-    });
-    return NextResponse.json({
-      projects: projects.map((project) => ({
-        ...project,
-        members: project.members.map((member) => ({
-          ...member,
-          user: { id: member.user.id, name: fullName(member.user), email: member.user.email },
-        })),
-      })),
-    });
-  }
-
   const projects = await prisma.project.findMany({
-    where: { archived: false },
+    where: desktop.desktop && !isManager(me.role) ? { archived: false } : undefined,
     include: {
       team: true,
       members: { where: { user: { deactivatedAt: null } }, include: { user: true } },
       _count: { select: { entries: true } },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ archived: "asc" }, { name: "asc" }],
   });
   return NextResponse.json({
-    projects: projects.map((project) => ({
+    projects: projects.map((project) => desktop.desktop ? ({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      color: project.color,
+      archived: project.archived,
+      team: project.team ? { id: project.team.id, name: project.team.name } : null,
+      members: project.members.map((member) => ({ user: { id: member.user.id, name: fullName(member.user), email: member.user.email } })),
+      hasEntries: project._count.entries > 0,
+    }) : ({
       ...project,
       members: project.members.map((member) => ({
         ...member,
         user: { id: member.user.id, name: fullName(member.user), email: member.user.email },
       })),
     })),
-  });
+  }, desktop.desktop ? { headers: { "Cache-Control": "no-store" } } : undefined);
 }
 
 export async function POST(request: Request) {
-  if ((await desktopUserForAllowedRoute("/api/projects")).desktop) return desktopForbidden();
-  const me = await getCurrentUser();
+  const desktop = await desktopUserForAllowedRoute("/api/projects");
+  if (desktop.desktop && new URL(request.url).searchParams.size > 0) return desktopForbidden();
+  const me = desktop.desktop ? desktop.user : await getCurrentUser();
+  if (desktop.desktop && !me) return desktopForbidden();
   const t = await requestMessages();
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
   if (!canCreateProject(me.role)) return NextResponse.json({ error: t.api.forbidden }, { status: 403 });
@@ -79,10 +71,8 @@ export async function POST(request: Request) {
       color: parsed.data.color ?? DEFAULT_PROJECT_COLOR,
       teamId: isManager(me.role) ? parsed.data.teamId || null : null,
       members: {
-        create: isManager(me.role)
-          ? (parsed.data.memberIds?.length
-              ? (await prisma.user.findMany({ where: { id: { in: parsed.data.memberIds }, deactivatedAt: null }, select: { id: true } })).map((user) => ({ userId: user.id }))
-              : [{ userId: me.id }])
+        create: parsed.data.memberIds?.length
+          ? (await prisma.user.findMany({ where: { id: { in: parsed.data.memberIds }, deactivatedAt: null }, select: { id: true } })).map((user) => ({ userId: user.id }))
           : [{ userId: me.id }],
       },
     },

@@ -19,6 +19,9 @@
 
 # Local databases and one-time setup credential (never commit installation data)
 /prisma/*.db
+/prisma/*.db-*
+/prisma/*.sqlite
+/prisma/*.sqlite-*
 /owner-setup-code.txt
 
 # Custom branding assets (logos must be placed in public/custom)
@@ -51,7 +54,12 @@ next-env.d.ts
 /update-run-elevated.ps1
 /scripts/publish-release.ps1
 
-#Debug Tauri
-src-tauri/target/debug
-scripts/seed-desktop-demo.ts
-docs/*
+# Tauri build artifacts
+/src-tauri/target/
+/src-tauri/frontend-dist/
+
+# Local-only desktop demo seed with test credentials
+/scripts/seed-desktop-demo.ts
+
+# Generated code knowledge graph
+/graphify-out/

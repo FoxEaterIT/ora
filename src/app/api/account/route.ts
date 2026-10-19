@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hashPassword, publicUser, verifyPassword } from "@/lib/auth";
+import { revokeDesktopSessionsForUser } from "@/lib/desktop-session";
 import { requestMessages } from "@/i18n/request";
 
 const schema = z.object({
@@ -29,12 +30,16 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: t.api.accountChangeRequired }, { status: 400 });
   }
   try {
-    const user = await prisma.user.update({
-      where: { id: me.id },
-      data: {
-        email,
-        passwordHash: parsed.data.newPassword ? await hashPassword(parsed.data.newPassword) : undefined,
-      },
+    const user = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: me.id },
+        data: {
+          email,
+          passwordHash: parsed.data.newPassword ? await hashPassword(parsed.data.newPassword) : undefined,
+        },
+      });
+      if (parsed.data.newPassword) await revokeDesktopSessionsForUser(updated.id, "password-changed", tx);
+      return updated;
     });
     return NextResponse.json({ user: publicUser(user) });
   } catch (error) {

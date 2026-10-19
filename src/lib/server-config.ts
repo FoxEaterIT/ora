@@ -2,6 +2,7 @@ export const OWNER_EMAIL = process.env.OWNER_EMAIL?.trim().toLowerCase() || "";
 export const OWNER_PASSWORD = process.env.OWNER_PASSWORD || "";
 export const OWNER_NAME = process.env.OWNER_NAME?.trim() || "Owner";
 export const AUTH_SECRET = process.env.AUTH_SECRET || "";
+export const ORA_TEST_DATABASE_URL = process.env.ORA_TEST_DATABASE_URL?.trim() || "";
 export const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME?.trim() || "ora_session";
 export const IS_PRODUCTION = process.env.NODE_ENV === "production";
 export const APP_ORIGIN = process.env.APP_ORIGIN?.trim() || `http://localhost:${process.env.PORT?.trim() || "33333"}`;

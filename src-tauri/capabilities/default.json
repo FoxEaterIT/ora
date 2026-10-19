@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop-main",
+  "description": "Allow the desktop window to invoke only the fixed keyring session commands.",
+  "windows": ["main"],
+  "permissions": ["allow-session-credentials"]
+}

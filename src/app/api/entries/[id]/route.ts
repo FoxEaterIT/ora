@@ -6,7 +6,7 @@ import { canTrack } from "@/lib/access";
 import { fullName } from "@/lib/users";
 import { requestMessages } from "@/i18n/request";
 import { canDeleteEntry } from "@/lib/entry-policy";
-import { desktopUserForAllowedRoute, desktopForbidden } from "@/lib/desktop-auth";
+import { desktopUserForAllowedRoute, desktopForbidden, runWithDesktopRequest } from "@/lib/desktop-auth";
 
 const schema = z.object({
   projectId: z.string().optional(),
@@ -23,6 +23,7 @@ async function loadOwned(id: string, userId: string, manager: boolean, messages:
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  return runWithDesktopRequest(request, async () => {
   const desktop = await desktopUserForAllowedRoute("/api/entries");
   const me = desktop.desktop ? desktop.user : await getCurrentUser();
   if (desktop.desktop && !me) return desktopForbidden();
@@ -30,7 +31,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
 
   const { id } = await params;
-  const loaded = await loadOwned(id, me.id, isManager(me.role), t);
+  const loaded = await loadOwned(id, me.id, desktop.desktop ? false : isManager(me.role), t);
   if ("error" in loaded) return NextResponse.json({ error: loaded.error }, { status: loaded.status });
   const existing = loaded.entry;
 
@@ -55,10 +56,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     include: { project: { include: { team: true } }, user: { select: { id: true, firstName: true, lastName: true, email: true } } },
   });
 
-  return NextResponse.json({ entry: { ...entry, user: { ...entry.user, name: fullName(entry.user) } } });
+  return NextResponse.json({ entry: { ...entry, user: { ...entry.user, name: fullName(entry.user) } } }, desktop.desktop ? { headers: { "Cache-Control": "no-store" } } : undefined);
+  });
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  return runWithDesktopRequest(_request, async () => {
   const desktop = await desktopUserForAllowedRoute("/api/entries");
   const me = desktop.desktop ? desktop.user : await getCurrentUser();
   if (desktop.desktop && !me) return desktopForbidden();
@@ -66,10 +69,11 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
 
   const { id } = await params;
-  const loaded = await loadOwned(id, me.id, isManager(me.role), t);
+  const loaded = await loadOwned(id, me.id, desktop.desktop ? false : isManager(me.role), t);
   if ("error" in loaded) return NextResponse.json({ error: loaded.error }, { status: loaded.status });
   if (!canDeleteEntry(me.id, loaded.entry.userId)) return NextResponse.json({ error: t.api.ownEntriesOnly }, { status: 403 });
 
   await prisma.timeEntry.delete({ where: { id } });
   return NextResponse.json({ ok: true });
+  });
 }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isManager } from "@/lib/auth";
 import { fullName } from "@/lib/users";
 import { requestMessages } from "@/i18n/request";
+import { desktopForbidden, desktopUserForAllowedRoute } from "@/lib/desktop-auth";
 
 const teamSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
@@ -13,6 +14,7 @@ const teamSchema = z.object({
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if ((await desktopUserForAllowedRoute("/api/teams")).desktop) return desktopForbidden();
   const me = await getCurrentUser();
   const t = await requestMessages();
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
@@ -58,6 +60,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if ((await desktopUserForAllowedRoute("/api/teams")).desktop) return desktopForbidden();
   const me = await getCurrentUser();
   const t = await requestMessages();
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack --hostname 127.0.0.1",
     "desktop:dev": "next dev --turbopack --hostname 127.0.0.1 -p 33334",
+    "desktop:build:frontend": "node scripts/build-desktop-frontend.mjs",
     "build": "prisma migrate deploy && next build --turbopack",
     "start": "prisma migrate deploy && next start --hostname 127.0.0.1",
     "lint": "eslint",
@@ -13,6 +14,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@tauri-apps/api": "^2.12.4",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -33,6 +35,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.27",
     "tailwindcss": "^4",
