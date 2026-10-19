@@ -13,6 +13,8 @@
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
+    "@emnapi/core": "^1.11.3",
+    "@emnapi/runtime": "^1.11.3",
     "@prisma/client": "^6.19.3",
     "@tauri-apps/api": "^2.12.4",
     "bcryptjs": "^3.0.3",
