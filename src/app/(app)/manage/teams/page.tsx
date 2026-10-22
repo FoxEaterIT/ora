@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { Button, Card, Empty, ErrorText, Field, Input, PageHeader, Textarea } from "@/components/ui";
+import { Button, Card, Empty, ErrorText, Field, Input, Modal, PageHeader, Textarea } from "@/components/ui";
 import { TEAM_COLORS } from "@/lib/app-config";
 import { useI18n } from "@/i18n/provider";
 
@@ -26,6 +26,7 @@ export default function TeamsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", description: "", color: COLORS[0], memberIds: [] as string[] });
 
   async function load() {
@@ -62,13 +63,14 @@ export default function TeamsPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm(t.deleteConfirm)) return;
     const response = await fetch(`/api/teams/${id}`, { method: "DELETE" });
     const data = await response.json();
     if (!response.ok) {
-      alert(data.error);
+      setDeleteTarget(null);
+      setError(data.error);
       return;
     }
+    setDeleteTarget(null);
     load();
   }
 
@@ -166,7 +168,7 @@ export default function TeamsPage() {
                     {team.members.map((m) => m.user.name).join(", ") || t.noMembers} · {team._count?.projects ?? 0} {t.projects}
                   </p>
                 </button>
-                <button onClick={() => remove(team.id)} className="rounded-lg p-2 text-muted hover:text-danger">
+                <button onClick={() => setDeleteTarget(team.id)} className="rounded-lg p-2 text-muted hover:text-danger">
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -174,6 +176,7 @@ export default function TeamsPage() {
           ))}
         </div>
       )}
+      {deleteTarget ? <Modal title={messages.projectsPage.delete} onClose={() => setDeleteTarget(null)}><p>{t.deleteConfirm}</p><div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={() => setDeleteTarget(null)}>{t.cancel}</Button><Button variant="danger" onClick={() => void remove(deleteTarget)}>{messages.projectsPage.delete}</Button></div></Modal> : null}
     </div>
   );
 }

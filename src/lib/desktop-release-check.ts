@@ -3,7 +3,7 @@ const RELEASE_URL = /^https:\/\/github\.com\/FoxEaterIT\/ora\/releases\/tag\/[\w
 const MSI_NAME = /^ora-desktop-v\d+\.\d+\.\d+\.msi$/i;
 const NSIS_NAME = /^ora-desktop-v\d+\.\d+\.\d+-setup\.exe$/i;
 
-export type DesktopRelease = { version: string; releaseUrl: string; assets: { name: string; url: string; digest: string }[] };
+export type DesktopRelease = { version: string; releaseUrl: string; body: string; assets: { name: string; url: string }[] };
 let cached: { at: number; value: DesktopRelease | null } | undefined;
 
 export async function getDesktopRelease(): Promise<DesktopRelease | null> {
@@ -22,14 +22,13 @@ export async function getDesktopRelease(): Promise<DesktopRelease | null> {
         if (marked && release.draft !== true && release.prerelease !== true && /^\d+\.\d+\.\d+$/.test(version) && RELEASE_URL.test(releaseUrl)) {
           const installers = assets.flatMap((item) => {
             if (!item || typeof item !== "object") return [];
-            const asset = item as { name?: unknown; browser_download_url?: unknown; digest?: unknown };
+            const asset = item as { name?: unknown; browser_download_url?: unknown };
             const name = typeof asset.name === "string" ? asset.name : "";
             const url = typeof asset.browser_download_url === "string" ? asset.browser_download_url : "";
-            const digest = typeof asset.digest === "string" ? asset.digest : "";
-            if (!(MSI_NAME.test(name) || NSIS_NAME.test(name)) || !url.startsWith("https://github.com/FoxEaterIT/ora/releases/download/") || !/^sha256:[a-f0-9]{64}$/i.test(digest)) return [];
-            return [{ name, url, digest: digest.slice(7).toLowerCase() }];
+            if (!(MSI_NAME.test(name) || NSIS_NAME.test(name)) || !url.startsWith("https://github.com/FoxEaterIT/ora/releases/download/")) return [];
+            return [{ name, url }];
           });
-          if (installers.length) value = { version, releaseUrl, assets: installers };
+          if (installers.length) value = { version, releaseUrl, body: typeof release.body === "string" ? release.body.replace(/\r\n/g, "\n").replace(/^\s*Ora-Desktop-Release:\s*true\s*$/gim, "").replace(/\n{3,}/g, "\n\n").trim() : "", assets: installers };
         }
       }
     }

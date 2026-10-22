@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { KeyRound, Plus, Save, Trash2 } from "lucide-react";
-import { Button, Card, Empty, ErrorText, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Button, Card, Empty, ErrorText, Field, Input, Modal, PageHeader, Select } from "@/components/ui";
 import { useI18n } from "@/i18n/provider";
 
 type Team = { id: string; name: string };
@@ -32,6 +32,8 @@ export default function PeoplePage() {
   const [error, setError] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [emailDrafts, setEmailDrafts] = useState<Record<string, string>>({});
+  const [confirmation, setConfirmation] = useState<{ title: string; message: string; person: Person; action: "reset" | "deactivate" } | null>(null);
+  const [dialogError, setDialogError] = useState("");
 
   const load = useCallback(async () => {
     const [usersResponse, sessionResponse, teamsResponse] = await Promise.all([
@@ -83,7 +85,7 @@ export default function PeoplePage() {
     });
     const data = await response.json();
     if (!response.ok) {
-      alert(data.error);
+      setDialogError(data.error);
       return;
     }
     await load();
@@ -99,19 +101,19 @@ export default function PeoplePage() {
     await updatePerson(person, { email });
   }
 
-  async function resetPassword(person: Person) {
-    if (!confirm(`${t.resetConfirm} ${person.name}${t.resetSuffix}`)) return;
-    await updatePerson(person, { resetPassword: true });
+  function resetPassword(person: Person) {
+    setDialogError("");
+    setConfirmation({ title: t.forceReset, message: `${t.resetConfirm} ${person.name}${t.resetSuffix}`, person, action: "reset" });
   }
 
   async function remove(person: Person) {
-    if (!confirm(`${t.deleteConfirm} ${person.name}${t.deleteSuffix}`)) return;
     const response = await fetch(`/api/users/${person.id}`, { method: "DELETE" });
     const data = await response.json();
     if (!response.ok) {
-      alert(data.error);
+      setDialogError(data.error);
       return;
     }
+    setConfirmation(null);
     await load();
   }
 
@@ -123,9 +125,10 @@ export default function PeoplePage() {
     });
     const data = await response.json();
     if (!response.ok) {
-      alert(data.error);
+      setDialogError(data.error);
       return;
     }
+    setConfirmation(null);
     await load();
   }
 
@@ -136,6 +139,7 @@ export default function PeoplePage() {
         subtitle={t.subtitle}
         action={<Button onClick={() => setOpen((value) => !value)}><Plus size={16} /> {t.newPerson}</Button>}
       />
+      {dialogError && !confirmation ? <Modal title={t.title} onClose={() => setDialogError("")}><p>{dialogError}</p><div className="mt-5 flex justify-end"><Button onClick={() => setDialogError("")}>{messages.app.cancel}</Button></div></Modal> : null}
       <div className="mb-4 flex justify-end"><Button variant="ghost" onClick={() => setShowDeactivated((value) => !value)}>{showDeactivated ? t.hideDeactivated : t.showDeactivated}</Button></div>
 
       {open ? (
@@ -172,6 +176,7 @@ export default function PeoplePage() {
         </Card>
       ) : null}
 
+      {confirmation ? <Modal title={confirmation.title} onClose={() => setConfirmation(null)}><p>{confirmation.message}</p><ErrorText>{dialogError}</ErrorText><div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={() => setConfirmation(null)}>{messages.app.cancel}</Button><Button variant="danger" onClick={() => { const current = confirmation; setConfirmation(null); if (current.action === "reset") void updatePerson(current.person, { resetPassword: true }); else void remove(current.person); }}>{confirmation.action === "reset" ? t.forceReset : t.deletePerson}</Button></div></Modal> : null}
       {people.length === 0 ? <Empty>{t.none}</Empty> : (
         <div className="overflow-hidden rounded-3xl border border-line bg-surface">
           <table className="w-full text-left text-sm">

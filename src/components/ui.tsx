@@ -19,9 +19,9 @@ export function Card({ className, children }: { className?: string; children: Re
   return <section className={cn("rounded-3xl border border-line bg-surface p-5 shadow-[var(--shadow)]", className)}>{children}</section>;
 }
 
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+export function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <label className="flex flex-col gap-1.5 text-sm">
+    <label className={cn("flex flex-col gap-1.5 text-sm", className)}>
       <span className="font-medium text-muted">{label}</span>
       {children}
     </label>
@@ -77,6 +77,17 @@ export function Button({
         className,
       )}
     />
+  );
+}
+
+export function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onKeyDown={(event) => { if (event.key === "Escape") onClose(); }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} autoFocus className="w-full max-w-md rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow)]">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <div className="mt-3 text-sm text-muted">{children}</div>
+      </section>
+    </div>
   );
 }
 

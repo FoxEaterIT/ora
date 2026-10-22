@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Clock3, DatabaseBackup, FolderKanban, LayoutDashboard, LogOut, Menu, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, X, Settings2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button, Modal } from "@/components/ui";
 import { APP_NAME, APP_TAGLINE, AVAILABLE_THEMES, EFFECTIVE_DEFAULT_THEME, appLogoForTheme } from "@/lib/app-config";
 import { locales } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
@@ -26,11 +27,13 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   const [accountOpen, setAccountOpen] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
   const [update, setUpdate] = useState<{ currentVersion: string; latestVersion: string; releaseUrl: string } | null>(null);
-  const [desktopRelease, setDesktopRelease] = useState<{ version: string; releaseUrl: string; assets: { name: string; url: string; digest: string }[] } | null>(null);
+  const [desktopRelease, setDesktopRelease] = useState<{ version: string; releaseUrl: string; body: string; assets: { name: string; url: string }[] } | null>(null);
+  const [showDesktopRelease, setShowDesktopRelease] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<{ phase: string; message: string; targetVersion: string } | null>(null);
   const [updaterAvailable, setUpdaterAvailable] = useState(false);
   const [updateError, setUpdateError] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [confirmUpdate, setConfirmUpdate] = useState(false);
   const brandLogo = appLogoForTheme(theme);
 
   useEffect(() => {
@@ -107,7 +110,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   }, [manager, updating]);
 
   async function startUpdate() {
-    if (!window.confirm(messages.updateConfirm)) return;
+    setConfirmUpdate(false);
     setUpdateError(false);
     try {
       const response = await fetch("/api/update", { method: "POST" });
@@ -287,11 +290,10 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
       {desktopRelease && !desktopMode && (
         <div role="status" className="mx-auto mt-4 max-w-[1400px] rounded-xl border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-ink sm:mx-6 lg:mx-auto">
           <p className="font-semibold">{messages.desktopReleaseAvailable.replace("{version}", desktopRelease.version)}</p>
-          <a href={desktopRelease.releaseUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand underline underline-offset-2">{messages.viewRelease}</a>
+          <button type="button" onClick={() => setShowDesktopRelease(true)} className="font-semibold text-brand underline underline-offset-2">{messages.viewRelease}</button>
           <ul className="mt-2 grid gap-2">
-            {desktopRelease.assets.map((asset) => <li key={asset.name}>{asset.name}: <a href={asset.url} target="_blank" rel="noreferrer" className="text-brand underline">{messages.downloadDesktop}</a> — SHA-256 <code className="break-all">{asset.digest}</code></li>)}
+            {desktopRelease.assets.map((asset) => <li key={asset.name}>{asset.name}: <a href={asset.url} target="_blank" rel="noreferrer" className="text-brand underline">{messages.downloadDesktop}</a></li>)}
           </ul>
-          <p className="mt-1 text-muted">{messages.desktopDigestNote}</p>
         </div>
       )}
       {update && (
@@ -299,13 +301,15 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
           <p>{messages.updateAvailable.replace("{version}", update.latestVersion).replace("{current}", update.currentVersion)}</p>
           <div className="flex items-center gap-4">
             <a href={update.releaseUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand underline underline-offset-2">{messages.viewRelease}</a>
-            {updaterAvailable && (!updateStatus || ["idle", "succeeded", "failed"].includes(updateStatus.phase)) && <button onClick={startUpdate} className="inline-flex items-center gap-2 rounded-lg bg-brand px-3 py-2 font-semibold text-brand-ink"><RefreshCw size={15} />{messages.installUpdate}</button>}
+            {updaterAvailable && (!updateStatus || ["idle", "succeeded", "failed"].includes(updateStatus.phase)) && <button onClick={() => setConfirmUpdate(true)} className="inline-flex items-center gap-2 rounded-lg bg-brand px-3 py-2 font-semibold text-brand-ink"><RefreshCw size={15} />{messages.installUpdate}</button>}
           </div>
           {updateStatus && !["idle", "succeeded"].includes(updateStatus.phase) && <p className="basis-full">{messages.updatePhase}: {updateStatus.message || updateStatus.phase}{updateError ? ` — ${messages.updateServiceUnavailable}` : ""}</p>}
           {updateStatus?.phase === "succeeded" && <p className="basis-full">{messages.updateDone}</p>}
           {!updaterAvailable && <p className="basis-full text-muted">{messages.updaterUnavailable}</p>}
         </div>
       )}
+      {showDesktopRelease && desktopRelease ? <Modal title={messages.releaseDetails} onClose={() => setShowDesktopRelease(false)}><div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm">{desktopRelease.body || messages.desktopReleaseAvailable.replace("{version}", desktopRelease.version)}</div><div className="mt-5 flex justify-end"><Button onClick={() => setShowDesktopRelease(false)}>{messages.app.cancel}</Button></div></Modal> : null}
+      {confirmUpdate ? <Modal title={messages.installUpdate} onClose={() => setConfirmUpdate(false)}><p>{messages.updateConfirm}</p><div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={() => setConfirmUpdate(false)}>{messages.app.cancel}</Button><Button onClick={() => void startUpdate()}>{messages.installUpdate}</Button></div></Modal> : null}
       <main className="mx-auto min-w-0 max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</main>
     </div>
   );

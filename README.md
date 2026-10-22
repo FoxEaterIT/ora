@@ -11,19 +11,16 @@ Ora helps small teams track project hours, manage people and teams, and export r
 - [Updating Ora](#updating-ora)
 - [Reports and backups](#reports-and-backups)
 - [Desktop panel preview](#desktop-panel-preview)
-- [Desktop release readiness plan](docs/desktop-release-checklist.md)
-- [Desktop security contract](docs/desktop-security-contract.md)
-- [Desktop Phase 5 distribution plan](docs/desktop-phase5-plan.md)
 
 ## Features
 
 | Area | What you can do |
 |---|---|
-| Time tracking | Track time on assigned projects, review personal timesheets, and delete your own entries. |
+| Time tracking | Track time on assigned projects. Adjust a running or completed entry's start and end from Timer or My hours, and delete your own completed entries from either screen. |
 | Projects | Create projects and assign people. Owners and admins also manage teams, archive projects, and delete projects without time history. |
 | Reports | Filter report data and export CSV or Excel files. |
 | Backup | The Owner can download a complete Excel archive of projects, people, teams, and related time entries. |
-| Preferences | Use English, Italian, or Spanish and choose from light and dark themes. |
+| Preferences | Use English, Italian, or Spanish and choose from light and dark themes. Confirmation and error prompts appear in Ora's themed dialogs. |
 
 > **Data protection:** Deactivating a person preserves their time history. Excel backups contain sensitive information and should be stored securely.
 
@@ -98,7 +95,7 @@ Create an IIS site using that folder and bind the intended hostname and HTTPS ce
 
 ## Desktop panel preview
 
-A preliminary Windows Tauri panel scaffold is available in [`src-tauri/`](src-tauri/README.md). It supports time tracking, Ora account sign-in, English/Italian/Spanish, and Windows-native secure session storage. It is not a supported release and must not be distributed. The release plan and current validation limits are tracked in the [desktop checklist](docs/desktop-release-checklist.md), [security contract](docs/desktop-security-contract.md), and [Phase 5 distribution plan](docs/desktop-phase5-plan.md).
+A preliminary Windows Tauri panel scaffold is available in [`src-tauri/`](src-tauri/README.md). Its window opens at 380 × 680 px and cannot be resized. In the web app, desktop release notices open the release notes in a modal and provide installer downloads without showing SHA-256 digests. It supports time tracking, Ora account sign-in, English/Italian/Spanish, and Windows-native secure session storage. Server URL entry uses an in-app dialog. It is not a supported release and must not be distributed. The release plan and current validation limits are tracked in the [desktop checklist](docs/desktop-release-checklist.md), [security contract](docs/desktop-security-contract.md), and [Phase 5 distribution plan](docs/desktop-phase5-plan.md).
 
 > **Preview only:** Phase 4 was closed by project decision, not by completion of every release test. Clean-checkout reproducibility, manual keyboard/accessibility checks, native WebView testing, and Windows installer execution remain unverified. Local x64 MSI and NSIS packaging builds succeeded, but the manual release workflow and authenticated download notice have not been exercised against a published release. The repository release helper `scripts/publish-release.ps1` bumps server and desktop versions together and dispatches the desktop installer workflow after creating the tagged release; installer generation and upload then run asynchronously in GitHub Actions. SHA-256 digest display is not independent publisher authentication. There is no automatic desktop updater. Do not distribute the scaffold until all required release gates have been validated.
 

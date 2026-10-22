@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { Button, Card, Empty, ErrorText, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Button, Card, Empty, ErrorText, Field, Input, Modal, PageHeader, Select } from "@/components/ui";
 import { entryDuration, formatDuration, hours, toLocalInput } from "@/lib/utils";
 import { useI18n } from "@/i18n/provider";
 
@@ -26,9 +26,9 @@ export default function TimesheetPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   async function deleteEntry(id: string) {
-    if (!window.confirm(t.deleteConfirm)) return;
     setError("");
     const response = await fetch(`/api/entries/${id}`, { method: "DELETE" });
     const data = await response.json();
@@ -40,6 +40,7 @@ export default function TimesheetPage() {
       setEditing(null);
       setOpen(false);
     }
+    setDeleteTarget(null);
     await load();
   }
 
@@ -181,7 +182,7 @@ export default function TimesheetPage() {
                     <button aria-label={t.editEntry} onClick={() => beginEdit(entry)} className="rounded-lg p-2 text-muted hover:bg-bg hover:text-ink">
                       <Pencil size={15} />
                     </button>
-                    <button aria-label={t.deleteEntry} onClick={() => deleteEntry(entry.id)} className="rounded-lg p-2 text-danger hover:bg-bg">
+                    <button aria-label={t.deleteEntry} onClick={() => setDeleteTarget(entry.id)} className="rounded-lg p-2 text-danger hover:bg-bg">
                       <Trash2 size={15} />
                     </button>
                   </td>
@@ -191,6 +192,7 @@ export default function TimesheetPage() {
           </table>
         </div>
       )}
+      {deleteTarget ? <Modal title={t.deleteEntry} onClose={() => setDeleteTarget(null)}><p>{t.deleteConfirm}</p><div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={() => setDeleteTarget(null)}>{t.cancel}</Button><Button variant="danger" onClick={() => void deleteEntry(deleteTarget)}>{t.deleteEntry}</Button></div></Modal> : null}
     </div>
   );
 }

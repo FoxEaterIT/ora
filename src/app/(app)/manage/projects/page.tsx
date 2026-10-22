@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Archive, Plus, Trash2 } from "lucide-react";
-import { Button, Card, Empty, ErrorText, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
+import { Button, Card, Empty, ErrorText, Field, Input, Modal, PageHeader, Select, Textarea } from "@/components/ui";
 import { PROJECT_COLORS } from "@/lib/app-config";
 import { useI18n } from "@/i18n/provider";
 type SessionUser = { id: string; role: "OWNER" | "ADMIN" | "USER" };
@@ -33,6 +33,7 @@ export default function ProjectsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [form, setForm] = useState({ name: "", description: "", color: COLORS[0], teamId: "", memberIds: [] as string[] });
   const manager = user ? user.role !== "USER" : false;
 
@@ -90,11 +91,11 @@ export default function ProjectsPage() {
   }
 
   async function deleteProject(project: Project) {
-    if (!window.confirm(t.deleteConfirm)) return;
     setError("");
     const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
     const data = await res.json();
     if (!res.ok) { setError(data.error); return; }
+    setDeleteTarget(null);
     await load();
   }
 
@@ -112,7 +113,8 @@ export default function ProjectsPage() {
         {manager ? <div><p className="mb-2 text-sm font-medium text-muted">{t.directMembers}</p><div className="flex flex-wrap gap-2">{users.map((person) => { const on = form.memberIds.includes(person.id); return <button type="button" key={person.id} onClick={() => toggleMember(person.id)} className={`rounded-full border px-3 py-1 text-sm ${on ? "border-brand bg-brand text-white" : "border-line"}`}>{person.name}</button>; })}</div></div> : user ? <div><p className="mb-2 text-sm font-medium text-muted">{t.directMembers}</p><div className="flex flex-wrap gap-2">{form.memberIds.map((memberId) => <span key={memberId} className="rounded-full border border-line px-3 py-1 text-sm">{projects.find((project) => project.members.some((member) => member.user.id === memberId))?.members.find((member) => member.user.id === memberId)?.user.name ?? (memberId === user.id ? t.assignSelf : memberId)}</span>)}<button type="button" onClick={() => toggleMember(user.id)} className={`rounded-full border px-3 py-1 text-sm ${form.memberIds.includes(user.id) ? "border-brand bg-brand text-white" : "border-line"}`}>{t.assignSelf}</button></div></div> : null}
         <div className="flex items-center gap-3"><Button type="submit">{t.save}</Button><Button type="button" variant="ghost" onClick={() => setOpen(false)}>{t.cancel}</Button></div>
       </form></Card> : null}
-      {projects.length === 0 ? <Empty>{t.none}</Empty> : <div className="grid gap-3 md:grid-cols-2">{projects.map((project) => <Card key={project.id} className={project.archived ? "opacity-60" : ""}><div className="flex items-start justify-between gap-3"><button onClick={() => beginEdit(project)} className="min-w-0 text-left"><p className="flex items-center gap-2 font-medium"><span className="h-3 w-3 rounded-full" style={{ background: project.color }} />{project.name}</p><p className="mt-1 text-sm text-muted">{project.description || t.noDescription}</p><p className="mt-2 text-xs text-muted">{project.team?.name ?? t.noTeam} · {project.members.length} {t.members}{project.archived ? ` · ${t.archived}` : ""}</p></button>{manager ? <div className="flex"><button onClick={() => toggleArchive(project)} className="rounded-lg p-2 text-muted hover:bg-bg" title={project.archived ? t.unarchive : t.archive}><Archive size={16} /></button><button onClick={() => deleteProject(project)} className="rounded-lg p-2 text-danger hover:bg-bg" title={t.delete}><Trash2 size={16} /></button></div> : null}</div></Card>)}</div>}
+      {projects.length === 0 ? <Empty>{t.none}</Empty> : <div className="grid gap-3 md:grid-cols-2">{projects.map((project) => <Card key={project.id} className={project.archived ? "opacity-60" : ""}><div className="flex items-start justify-between gap-3"><button onClick={() => beginEdit(project)} className="min-w-0 text-left"><p className="flex items-center gap-2 font-medium"><span className="h-3 w-3 rounded-full" style={{ background: project.color }} />{project.name}</p><p className="mt-1 text-sm text-muted">{project.description || t.noDescription}</p><p className="mt-2 text-xs text-muted">{project.team?.name ?? t.noTeam} · {project.members.length} {t.members}{project.archived ? ` · ${t.archived}` : ""}</p></button>{manager ? <div className="flex"><button onClick={() => toggleArchive(project)} className="rounded-lg p-2 text-muted hover:bg-bg" title={project.archived ? t.unarchive : t.archive}><Archive size={16} /></button><button onClick={() => setDeleteTarget(project)} className="rounded-lg p-2 text-danger hover:bg-bg" title={t.delete}><Trash2 size={16} /></button></div> : null}</div></Card>)}</div>}
+      {deleteTarget ? <Modal title={t.delete} onClose={() => setDeleteTarget(null)}><p>{t.deleteConfirm}</p><div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={() => setDeleteTarget(null)}>{messages.app.cancel}</Button><Button variant="danger" onClick={() => void deleteProject(deleteTarget)}>{t.delete}</Button></div></Modal> : null}
     </div>
   );
 }
