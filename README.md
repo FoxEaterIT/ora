@@ -10,6 +10,7 @@ Ora helps small teams track project hours, manage people and teams, and export r
 - [Windows installation](#windows-installation-and-hosting)
 - [Updating Ora](#updating-ora)
 - [Reports and backups](#reports-and-backups)
+- [Uninstalling Ora](#uninstalling-ora)
 - [Desktop panel preview](#desktop-panel-preview)
 
 ## Features
@@ -69,6 +70,8 @@ The database path is fixed at `prisma/ORA.db`; it is not configurable.
 
 Run `install.cmd` as Administrator on Windows. It installs the production app under `%APPDATA%\Ora`, initializes the SQLite database, asks for an available TCP port (default `33333`), and registers the `OraTimeTrackingService` Windows service. During repair or reinstallation with the service already registered, the configured port in `.env` is preserved. Visit the installer’s displayed local URL and complete `/setup`.
 
+The installer registers `OraTimeTrackingService`, the updater broker, and `OraTimeTrackingDeletion`. The deletion broker runs separately from the web process and accepts only fixed local uninstall/status requests. Older installations without it must run the elevated Ora installer/repair before in-app uninstall is available. Optional project/team/people Excel inventories are saved under `Documents\Ora-Uninstall-Exports`; preserved application data is saved separately under `Documents\Ora-Uninstall-Data-<timestamp>`.
+
 The installer does not configure IIS, HTTPS, DNS, or firewall rules. For network access, put Ora behind a reverse proxy such as IIS with URL Rewrite and ARR. Keep Ora bound to `127.0.0.1`, set `APP_ORIGIN` to the public HTTPS URL, and do not expose the backend port directly to untrusted networks. See the [IIS reverse-proxy example](#iis-reverse-proxy-example) below.
 
 ### IIS reverse-proxy example
@@ -92,6 +95,12 @@ Install IIS, URL Rewrite, and Application Request Routing (ARR), then enable pro
 ```
 
 Create an IIS site using that folder and bind the intended hostname and HTTPS certificate. If installation selected a port other than `33333`, update the rewrite target to match the Ora port. Set `APP_ORIGIN` to the public URL, restart `OraTimeTrackingService`, and allow inbound traffic only to the proxy.
+
+## Uninstalling Ora
+
+The Owner can open **Uninstall Ora** from the app navigation. Download the complete Excel archive first, choose separately whether to preserve `.env`, SQLite data, database backup, and custom logos in Documents, and whether to create separate project/team/people Excel inventories; then type `YES` to confirm. Requested exports and retained data are prepared before service or application removal. If safety checks, data export, or service operations fail, it records status and stops rather than intentionally proceeding with unsafe database removal. Legacy installs without the broker require an elevated installer/repair first.
+
+> **Separate products:** Uninstalling Ora does not uninstall Ora Desktop. Remove Ora Desktop separately from Windows **Settings → Apps → Installed apps**.
 
 ## Desktop panel preview
 

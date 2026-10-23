@@ -251,6 +251,113 @@ if (-not (Get-Service -Name $updaterServiceName -ErrorAction SilentlyContinue)) 
   Start-Service -Name $updaterServiceName
 }
 
+$deletionServiceName = "OraTimeTrackingDeletion"
+$deletionRoot = Join-Path $env:ProgramData "Ora\deletion"
+$deletionExe = Join-Path $deletionRoot "$deletionServiceName.exe"
+$deletionXml = Join-Path $deletionRoot "$deletionServiceName.xml"
+if (-not (Get-Service -Name $deletionServiceName -ErrorAction SilentlyContinue)) {
+  if ($InstalledCopy -and -not (Test-Path $deletionExe)) { throw "Run install.cmd from its downloaded source folder to register $deletionServiceName." }
+  foreach ($script in @("deletion-agent.ps1", "deletion-run.ps1")) {
+    if (-not (Test-Path (Join-Path $root "scripts\$script"))) { throw "Required deletion service script is missing: $script" }
+  }
+  New-Item -ItemType Directory -Path $deletionRoot -Force | Out-Null
+  & icacls.exe $deletionRoot /inheritance:r /grant:r "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Could not restrict access to the deletion service files." }
+  if (-not (Test-Path $deletionExe)) { Copy-Item -LiteralPath $serviceExe -Destination $deletionExe -Force }
+  & icacls.exe $deletionExe /inheritance:r /grant:r "SYSTEM:F" "Administrators:F" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Could not restrict access to the deletion service executable." }
+  $deletionStatus = Join-Path $env:ProgramData "Ora\deletion-status.json"
+  $deletionLog = Join-Path $root "logs\deletion"
+  New-Item -ItemType Directory -Path (Split-Path -Parent $deletionStatus) -Force | Out-Null
+  & icacls.exe (Split-Path -Parent $deletionStatus) /inheritance:r /grant:r "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Could not restrict access to the deletion status files." }
+  $installProfile = Split-Path (Split-Path (Split-Path $root -Parent) -Parent) -Parent
+  $deletionExport = Join-Path $installProfile "Documents\Ora-Uninstall-Exports"
+  New-Item -ItemType Directory -Path $deletionExport -Force | Out-Null
+  New-Item -ItemType Directory -Path $deletionLog -Force | Out-Null
+  & icacls.exe $deletionRoot /inheritance:r /grant:r "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Could not restrict access to the deletion service files." }
+  $escapedRoot = [System.Security.SecurityElement]::Escape($root)
+  $escapedDeletionRoot = [System.Security.SecurityElement]::Escape($deletionRoot)
+  $escapedStatus = [System.Security.SecurityElement]::Escape($deletionStatus)
+  $escapedExport = [System.Security.SecurityElement]::Escape($deletionExport)
+  $deletionAgent = Join-Path $deletionRoot "deletion-agent.ps1"
+  $deletionWorker = Join-Path $deletionRoot "deletion-run.ps1"
+  Copy-Item -LiteralPath (Join-Path $root "scripts\deletion-agent.ps1") -Destination $deletionAgent -Force
+  Copy-Item -LiteralPath (Join-Path $root "scripts\deletion-run.ps1") -Destination $deletionWorker -Force
+  & icacls.exe $deletionAgent /inheritance:r /grant:r "SYSTEM:F" "Administrators:F" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Could not restrict access to the deletion broker script." }
+  & icacls.exe $deletionWorker /inheritance:r /grant:r "SYSTEM:F" "Administrators:F" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Could not restrict access to the deletion worker script." }
+  $xml = @"
+<service>
+  <id>$deletionServiceName</id>
+  <name>Ora Time Tracking Deletion</name>
+  <description>Constrained local broker for owner-requested Ora uninstall</description>
+  <executable>powershell.exe</executable>
+  <arguments>-NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$escapedDeletionRoot\deletion-agent.ps1&quot; -InstallPath &quot;$escapedRoot&quot; -StatusPath &quot;$escapedStatus&quot; -ExportRoot &quot;$escapedExport&quot;</arguments>
+  <workingdirectory>$escapedDeletionRoot</workingdirectory>
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="10 sec" />
+  <logpath>$deletionLog</logpath>
+</service>
+"@
+  [System.IO.File]::WriteAllText($deletionXml, $xml, [System.Text.UTF8Encoding]::new($false))
+  if ($InstalledCopy) {
+    & $deletionExe refresh
+    if ($LASTEXITCODE -ne 0) { throw "Could not refresh $deletionServiceName." }
+  }
+  if (-not $InstalledCopy) {
+    & $deletionExe install
+    if ($LASTEXITCODE -ne 0) { throw "Could not install $deletionServiceName." }
+    & $deletionExe start
+    if ($LASTEXITCODE -ne 0) { throw "Could not start $deletionServiceName." }
+  } else {
+    Start-Service -Name $deletionServiceName
+  }
+} else {
+  $deletionStatus = Join-Path $env:ProgramData "Ora\deletion-status.json"
+  New-Item -ItemType Directory -Path (Split-Path -Parent $deletionStatus) -Force | Out-Null
+  & icacls.exe (Split-Path -Parent $deletionStatus) /inheritance:r /grant:r "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Could not restrict access to the deletion status files." }
+  $installProfile = Split-Path (Split-Path (Split-Path $root -Parent) -Parent) -Parent
+  $deletionExport = Join-Path $installProfile "Documents\Ora-Uninstall-Exports"
+  $deletionLog = Join-Path $root "logs\deletion"
+  New-Item -ItemType Directory -Path $deletionExport -Force | Out-Null
+  New-Item -ItemType Directory -Path $deletionLog -Force | Out-Null
+  & icacls.exe $deletionRoot /inheritance:r /grant:r "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Could not restrict access to the deletion service files." }
+  $escapedRoot = [System.Security.SecurityElement]::Escape($root)
+  $escapedDeletionRoot = [System.Security.SecurityElement]::Escape($deletionRoot)
+  $escapedStatus = [System.Security.SecurityElement]::Escape($deletionStatus)
+  $escapedExport = [System.Security.SecurityElement]::Escape($deletionExport)
+  Copy-Item -LiteralPath (Join-Path $root "scripts\deletion-agent.ps1") -Destination (Join-Path $deletionRoot "deletion-agent.ps1") -Force
+  Copy-Item -LiteralPath (Join-Path $root "scripts\deletion-run.ps1") -Destination (Join-Path $deletionRoot "deletion-run.ps1") -Force
+  & icacls.exe $deletionRoot /inheritance:r /grant:r "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Could not restrict access to the deletion service files." }
+  foreach ($file in @("deletion-agent.ps1", "deletion-run.ps1")) {
+    & icacls.exe (Join-Path $deletionRoot $file) /inheritance:r /grant:r "SYSTEM:F" "Administrators:F" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Could not restrict access to $file." }
+  }
+  $xml = @"
+<service>
+  <id>$deletionServiceName</id>
+  <name>Ora Time Tracking Deletion</name>
+  <description>Constrained local broker for owner-requested Ora uninstall</description>
+  <executable>powershell.exe</executable>
+  <arguments>-NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$escapedDeletionRoot\deletion-agent.ps1&quot; -InstallPath &quot;$escapedRoot&quot; -StatusPath &quot;$escapedStatus&quot; -ExportRoot &quot;$escapedExport&quot;</arguments>
+  <workingdirectory>$escapedDeletionRoot</workingdirectory>
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="10 sec" />
+  <logpath>$deletionLog</logpath>
+</service>
+"@
+  [System.IO.File]::WriteAllText($deletionXml, $xml, [System.Text.UTF8Encoding]::new($false))
+  & $deletionExe refresh
+  if ($LASTEXITCODE -ne 0) { throw "Could not refresh $deletionServiceName." }
+  if ((Get-Service -Name $deletionServiceName).Status -ne "Running") { Start-Service -Name $deletionServiceName }
+}
+
 Write-Host ""
 Write-Host "Ora is ready." -ForegroundColor Green
 Write-Host "Install folder: $root"

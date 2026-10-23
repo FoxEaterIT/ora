@@ -49,13 +49,12 @@ This checklist tracks the user-requested behavior that differs from the current 
 
 ## 6. In-app deletion service and complete uninstall
 
-- [ ] Add a manager-only (Owner-only if following the stated full-control boundary) web action that sends a fixed uninstall request to `OraTimeTrackingDeletion`; never let the web process execute arbitrary elevated commands.
-- [ ] Implement a constrained local IPC protocol for deletion with fixed operations, pinned install paths, access control, and durable progress/status reporting.
-- [ ] Before any destructive action, prompt in the deletion service/console for explicit confirmation. Accept only `y`, `Y`, `yes`, or `YES`; every other answer means No.
-- [ ] Separately ask whether to create the requested Excel backup, with the same exact affirmative answers; every other answer means No. Confirm the backup is complete before proceeding if requested.
-- [ ] On confirmation, stop and remove the updater and application runner services, remove application files and database as requested, then stop and remove the deletion service last.
-- [ ] Make cancellation and failures safe: no partial deletion before confirmation; preserve logs/status and provide actionable recovery if service removal or file cleanup fails.
-- [ ] Test the full protocol and lifecycle on a disposable Windows VM/install only, including negative answers, malformed input, service-stop failure, Excel export failure, partial removal, and successful final service/file/database absence.
+- [x] Add an Owner-only web action that sends a fixed uninstall request to `OraTimeTrackingDeletion`; the web process never executes elevated deletion commands.
+- [x] Implement constrained local IPC with fixed `status`/`start` operations, a pinned app path, a SYSTEM/Administrators pipe ACL, and durable progress/status reporting.
+- [x] Require a typed `YES` UI confirmation and explicit separate choices for the complete Excel archive, optional inventory workbooks, and data preservation; malformed or missing values are rejected.
+- [x] Before file removal, verify the database is present, reject SQLite sidecars/live app processes, verify any retained database copy by hash, and complete requested Excel exports.
+- [x] Stop/remove updater and runner services, remove app files, and deregister the deletion service last; failures leave actionable status and attempt service restoration before file deletion.
+- [ ] Test the full protocol and lifecycle on a disposable Windows VM/install, including service account/pipe access, negative choices, malformed input, service-stop failure, export failure, partial removal, and successful final service/file/database absence.
 
 ## 7. README and release documentation
 

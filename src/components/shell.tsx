@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Clock3, DatabaseBackup, FolderKanban, LayoutDashboard, LogOut, Menu, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, X, Settings2, RefreshCw } from "lucide-react";
+import { Clock3, DatabaseBackup, FolderKanban, LayoutDashboard, LogOut, Menu, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, X, Settings2, RefreshCw, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, Modal } from "@/components/ui";
 import { APP_NAME, APP_TAGLINE, AVAILABLE_THEMES, EFFECTIVE_DEFAULT_THEME, appLogoForTheme } from "@/lib/app-config";
@@ -158,7 +158,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
           { href: "/manage/report", label: messages.reports, icon: LayoutDashboard },
           { href: "/manage/teams", label: messages.teams, icon: UsersRound },
           { href: "/manage/people", label: messages.people, icon: Users },
-          ...(owner ? [{ href: "/manage/backups", label: messages.backups, icon: DatabaseBackup }] : []),
+          ...(owner ? [{ href: "/manage/backups", label: messages.backups, icon: DatabaseBackup }, { href: "/manage/uninstall", label: messages.uninstallPage.title, icon: Trash2 }] : []),
         ]
       : []),
   ];
