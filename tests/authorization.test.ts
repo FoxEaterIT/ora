@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { isManager } from "../src/lib/auth";
 import { canDeleteEntry } from "../src/lib/entry-policy";
-import { exportAuthorization, exportAuthorizationResponse } from "../src/app/api/export/route";
+import { exportAuthorization, exportAuthorizationResponse } from "../src/lib/export-authorization";
 
 test("time entries can only be deleted by their owner, including managers", () => {
   assert.equal(canDeleteEntry("owner-1", "owner-1"), true);

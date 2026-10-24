@@ -41,11 +41,21 @@ if ($keepData) {
   if (-not (Test-Path $copyDb) -or (Get-FileHash $dbPath -Algorithm SHA256).Hash -ne (Get-FileHash $copyDb -Algorithm SHA256).Hash) { throw "Preserved database verification failed. Original files were not deleted." }
 }
 $exportRoot = $null
+$exportFailed = $false
 if ($createExcel) {
   $exportRoot = Join-Path $documentsRoot ("Ora-Uninstall-Export-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
-  New-Item -ItemType Directory -Path $exportRoot -Force | Out-Null
-  Push-Location $installRoot
-  try { & node (Join-Path $installRoot "scripts\export-uninstall-data.cjs") $exportRoot; if ($LASTEXITCODE -ne 0) { throw "Excel export failed; no services or application files were removed." } } finally { Pop-Location }
+  try {
+    New-Item -ItemType Directory -Path $exportRoot -Force | Out-Null
+    Push-Location $installRoot
+    try {
+      & node (Join-Path $installRoot "scripts\export-uninstall-data.cjs") $exportRoot
+      if ($LASTEXITCODE -ne 0) { throw "Excel export returned exit code $LASTEXITCODE." }
+    } finally { Pop-Location }
+  } catch {
+    $exportFailed = $true
+    $exportRoot = $null
+    Write-Warning "Excel inventory export failed and will be skipped. Uninstall will continue. $($_.Exception.Message)"
+  }
 }
 
 $runner = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
@@ -86,5 +96,7 @@ Remove-Item -LiteralPath $deletionRoot -Recurse -Force -ErrorAction SilentlyCont
 if (Get-Service -Name $deletionServiceName -ErrorAction SilentlyContinue) { throw "Ora files are removed but the deletion service is still registered. Status retained at $deletionStatusBackup." }
 Remove-Item -LiteralPath $deletionStatus -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $deletionStatusBackup -Force -ErrorAction SilentlyContinue
-Write-Host "Ora has been removed. Excel export: $exportRoot" -ForegroundColor Green
+Write-Host "Ora has been removed." -ForegroundColor Green
+if ($createExcel -and -not $exportFailed) { Write-Host "Excel export: $exportRoot" }
+if ($exportFailed) { Write-Warning "Excel inventory export was skipped because it failed. Application removal still completed." }
 if ($keepData) { Write-Host "Application data retained in: $dataRoot" }

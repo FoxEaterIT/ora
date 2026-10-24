@@ -6,15 +6,15 @@ import { DEFAULT_LOCALE, getMessages, normalizeLocale, LOCALE_COOKIE, type Local
 type I18nValue = { locale: Locale; messages: Messages; setLocale: (locale: Locale) => void };
 const I18nContext = createContext<I18nValue | null>(null);
 
-export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
+export function I18nProvider({ children, initialLocale }: { children: React.ReactNode; initialLocale?: Locale }) {
+  const [locale, setLocaleState] = useState<Locale>(initialLocale ?? DEFAULT_LOCALE);
   useEffect(() => {
     const saved = normalizeLocale(localStorage.getItem("ora-locale"));
     const browser = typeof navigator === "undefined" ? undefined : navigator.languages.map(normalizeLocale).find(Boolean) ?? normalizeLocale(navigator.language);
-    const initial = saved ?? browser ?? DEFAULT_LOCALE;
+    const initial = initialLocale ?? saved ?? browser ?? DEFAULT_LOCALE;
     setLocaleState(initial);
     persistLocale(initial);
-  }, []);
+  }, [initialLocale]);
   const setLocale = (next: Locale) => {
     setLocaleState(next);
     persistLocale(next);

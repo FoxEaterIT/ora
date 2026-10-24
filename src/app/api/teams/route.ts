@@ -5,7 +5,7 @@ import { DEFAULT_TEAM_COLOR } from "@/lib/server-config";
 import { getCurrentUser, isManager } from "@/lib/auth";
 import { fullName } from "@/lib/users";
 import { requestMessages } from "@/i18n/request";
-import { desktopForbidden, desktopUserForAllowedRoute } from "@/lib/desktop-auth";
+import { desktopForbidden, desktopUserForAllowedRoute, runWithDesktopRequest } from "@/lib/desktop-auth";
 
 const createTeamSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -30,8 +30,9 @@ function serializeTeam<T extends { id: string; name: string; description: string
   return { ...team, members };
 }
 
-export async function GET() {
-  const desktop = await desktopUserForAllowedRoute("/api/teams");
+export async function GET(request: Request) {
+  return runWithDesktopRequest(request, async () => {
+  const desktop = await desktopUserForAllowedRoute(request.url);
   const me = desktop.desktop ? desktop.user : await getCurrentUser();
   if (desktop.desktop && !me) return desktopForbidden();
   if (!me) return NextResponse.json({ error: (await requestMessages()).api.unauthenticated }, { status: 401 });
@@ -45,11 +46,14 @@ export async function GET() {
     orderBy: { name: "asc" },
   });
 
-  return NextResponse.json({ teams: teams.map((team) => serializeTeam(team, !desktop.desktop)) }, desktop.desktop ? { headers: { "Cache-Control": "no-store" } } : undefined);
+  return NextResponse.json({ teams: teams.map((team) => serializeTeam(team, !desktop.desktop)) }, desktop.desktop ? { headers: { "Cache-Control": "no-store", Pragma: "no-cache" } } : undefined);
+  });
 }
 
 export async function POST(request: Request) {
-  if ((await desktopUserForAllowedRoute("/api/teams")).desktop) return desktopForbidden();
+  return runWithDesktopRequest(request, async () => {
+  const desktop = await desktopUserForAllowedRoute(request.url);
+  if (desktop.desktop) return desktopForbidden();
   const me = await getCurrentUser();
   const t = await requestMessages();
   if (!me) return NextResponse.json({ error: t.api.unauthenticated }, { status: 401 });
@@ -71,4 +75,5 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ team: serializeTeam(team, true) }, { status: 201 });
+  });
 }

@@ -55,11 +55,19 @@ try {
     if (-not (Test-Path -LiteralPath $copyDb) -or (Get-FileHash $dbPath -Algorithm SHA256).Hash -ne (Get-FileHash $copyDb -Algorithm SHA256).Hash) { throw "Preserved database verification failed; original files were not deleted." }
   }
   $exportRoot = $null
+  $exportFailed = $false
   if ($CreateExcel -eq "true") {
     $exportRoot = Join-Path $ExportRoot (Get-Date -Format "yyyyMMdd-HHmmss")
     New-Item -ItemType Directory -Path $exportRoot -Force | Out-Null
     Push-Location $install
-    try { & node (Join-Path $install "scripts\export-uninstall-data.cjs") $exportRoot; if ($LASTEXITCODE -ne 0) { throw "Excel inventory export failed; no services or application files were removed." } } finally { Pop-Location }
+    try {
+      & node (Join-Path $install "scripts\export-uninstall-data.cjs") $exportRoot
+      if ($LASTEXITCODE -ne 0) { throw "Excel export returned exit code $LASTEXITCODE." }
+    } catch {
+      $exportFailed = $true
+      $exportRoot = $null
+      Write-Status "preparing" ("Excel inventory export failed and was skipped. Uninstall will continue. " + $_.Exception.Message)
+    } finally { Pop-Location }
   }
   $running = Get-CimInstance Win32_Process -Filter "name = 'node.exe'" | Where-Object { $_.CommandLine -like "*$install*" }
   if ($running) { throw "Ora application processes are still running. Please retry after investigating." }
@@ -93,7 +101,7 @@ try {
   $deletionExe = Join-Path (Split-Path -Parent $StatusPath) "deletion\$serviceName.exe"
   $lockPath = Join-Path (Split-Path -Parent $StatusPath) "deletion.lock"
   Remove-Item -LiteralPath $install -Recurse -Force
-  Write-Status "succeeded" ("Ora was removed." + $(if ($exportRoot) { " Excel export: $exportRoot." } else { "" }) + $(if ($dataRoot) { " Preserved data: $dataRoot" } else { "" }))
+  Write-Status "succeeded" ("Ora was removed." + $(if ($exportRoot) { " Excel export: $exportRoot." } elseif ($exportFailed) { " Excel inventory export failed and was skipped." } else { "" }) + $(if ($dataRoot) { " Preserved data: $dataRoot" } else { "" }))
   Start-Sleep -Seconds 3
   if (Test-Path -LiteralPath $deletionExe) {
     & $deletionExe uninstall

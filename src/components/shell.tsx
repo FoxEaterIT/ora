@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -255,7 +256,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
           <aside className="absolute inset-y-0 left-0 flex w-[min(19rem,85vw)] flex-col border-r border-line bg-surface p-5 shadow-2xl">
             <div className="mb-8 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {brandLogo ? <img src={brandLogo} alt="" width={144} height={40} className="max-h-10 max-w-36 object-contain" /> : <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand text-lg font-bold text-brand-ink">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
+                {brandLogo ? <Image src={brandLogo} alt="" width={144} height={40} unoptimized className="max-h-10 max-w-36 object-contain" /> : <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand text-lg font-bold text-brand-ink">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
                 <div>
                   <p className="text-lg font-semibold tracking-tight text-ink">{APP_NAME}</p>
                   <p className="text-xs text-muted">{APP_TAGLINE}</p>

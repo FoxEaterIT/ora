@@ -4,28 +4,29 @@ Ora helps small teams track project hours, manage people and teams, and export r
 
 ## Contents
 
-- [Features](#features)
-- [Quick start](#quick-start)
-- [Configuration](#environment-variables)
-- [Windows installation](#windows-installation-and-hosting)
-- [Updating Ora](#updating-ora)
+- [What Ora does](#what-ora-does)
+- [Get started](#get-started)
+- [Configure Ora](#configure-ora)
+- [Install and host on Windows](#install-and-host-on-windows)
+- [Update Ora](#update-ora)
 - [Reports and backups](#reports-and-backups)
-- [Uninstalling Ora](#uninstalling-ora)
-- [Desktop panel preview](#desktop-panel-preview)
+- [Uninstall Ora](#uninstall-ora)
+- [Desktop preview](#desktop-preview)
+- [License](#license)
 
-## Features
+## What Ora does
 
 | Area | What you can do |
 |---|---|
-| Time tracking | Track time on assigned projects. Adjust a running or completed entry's start and end from Timer or My hours, and delete your own completed entries from either screen. |
+| Time tracking | Track time on assigned projects. The web Timer and Tauri desktop panel share the Timer React view through separate API adapters. The web My hours page and desktop panel also share a view; desktop is currently read-only, while web supports manual entry creation, editing, and deletion. The desktop API remains constrained to its allowlisted routes, and project deletion is unavailable in desktop mode. |
 | Projects | Create projects and assign people. Owners and admins also manage teams, archive projects, and delete projects without time history. |
-| Reports | Filter report data and export CSV or Excel files. |
+| Reports | Filter report data and export CSV or Excel files. Ora Desktop does not support report exports. |
 | Backup | The Owner can download a complete Excel archive of projects, people, teams, and related time entries. |
 | Preferences | Use English, Italian, or Spanish and choose from light and dark themes. Confirmation and error prompts appear in Ora's themed dialogs. |
 
 > **Data protection:** Deactivating a person preserves their time history. Excel backups contain sensitive information and should be stored securely.
 
-## Quick start
+## Get started
 
 **Requirements:** Node.js 20 or newer and npm. SQLite is stored locally at `prisma/ORA.db`.
 
@@ -43,7 +44,7 @@ For production, set a strong random `AUTH_SECRET` and configure `.env` before bu
 
 > **Windows installer:** for a new installation, choose a free TCP port when prompted. Reinstalling or repairing an installation with `OraTimeTrackingService` already registered preserves the existing `.env` port.
 
-## Environment variables
+## Configure Ora
 
 All variables are defined in [`.env.example`](.env.example). The installer creates `.env` and generates `AUTH_SECRET`; for manual setup, copy the example file and replace its placeholder secret before production use. Public `NEXT_PUBLIC_*` values are embedded at build time.
 
@@ -66,9 +67,9 @@ All variables are defined in [`.env.example`](.env.example). The installer creat
 
 The database path is fixed at `prisma/ORA.db`; it is not configurable.
 
-## Windows installation and hosting
+## Install and host on Windows
 
-Run `install.cmd` as Administrator on Windows. It installs the production app under `%APPDATA%\Ora`, initializes the SQLite database, asks for an available TCP port (default `33333`), and registers the `OraTimeTrackingService` Windows service. During repair or reinstallation with the service already registered, the configured port in `.env` is preserved. Visit the installer’s displayed local URL and complete `/setup`.
+Run `install.cmd` as Administrator on Windows. It installs the production app under `%APPDATA%\Ora`, initializes the SQLite database, asks for an available TCP port (default `33333`), and registers the `OraTimeTrackingService` Windows service. During repair or reinstallation with the service already registered, the configured port in `.env` is preserved. Visit the installer's displayed local URL and complete `/setup`.
 
 The installer registers `OraTimeTrackingService`, the updater broker, and `OraTimeTrackingDeletion`. The deletion broker runs separately from the web process and accepts only fixed local uninstall/status requests. Older installations without it must run the elevated Ora installer/repair before in-app uninstall is available. Optional project/team/people Excel inventories are saved under `Documents\Ora-Uninstall-Exports`; preserved application data is saved separately under `Documents\Ora-Uninstall-Data-<timestamp>`.
 
@@ -96,35 +97,31 @@ Install IIS, URL Rewrite, and Application Request Routing (ARR), then enable pro
 
 Create an IIS site using that folder and bind the intended hostname and HTTPS certificate. If installation selected a port other than `33333`, update the rewrite target to match the Ora port. Set `APP_ORIGIN` to the public URL, restart `OraTimeTrackingService`, and allow inbound traffic only to the proxy.
 
-## Uninstalling Ora
+## Update Ora
 
-The Owner can open **Uninstall Ora** from the app navigation. Download the complete Excel archive first, choose separately whether to preserve `.env`, SQLite data, database backup, and custom logos in Documents, and whether to create separate project/team/people Excel inventories; then type `YES` to confirm. Requested exports and retained data are prepared before service or application removal. If safety checks, data export, or service operations fail, it records status and stops rather than intentionally proceeding with unsafe database removal. Legacy installs without the broker require an elevated installer/repair first.
+The Windows installer registers the `OraTrackingServiceUpdater` service. When a release is available, an Owner or Admin can choose **Install update** in the app header. Before activation, the updater checks the release, service, configured port, HTTP health, installation path, and database, then migrates a staged database copy. It retains rollback and database backups and checks Ora's health after restarting the service.
 
-> **Separate products:** Uninstalling Ora does not uninstall Ora Desktop. Remove Ora Desktop separately from Windows **Settings → Apps → Installed apps**.
+> **Older installations:** if the updater service is missing, the in-app update action cannot work. From elevated PowerShell, run `& "$env:APPDATA\Ora\scripts\update.ps1"` to invoke the external updater. It detects the installation path automatically. Use this only after making and verifying a database backup; if no newer release is available, it will not bootstrap the updater service.
 
-## Desktop panel preview
-
-A preliminary Windows Tauri panel scaffold is available in [`src-tauri/`](src-tauri/README.md). Its window opens at 380 × 680 px and cannot be resized. In the web app, desktop release notices open the release notes in a modal and provide installer downloads without showing SHA-256 digests. It supports time tracking, Ora account sign-in, English/Italian/Spanish, and Windows-native secure session storage. Server URL entry uses an in-app dialog. It is not a supported release and must not be distributed. The release plan and current validation limits are tracked in the [desktop checklist](docs/desktop-release-checklist.md), [security contract](docs/desktop-security-contract.md), and [Phase 5 distribution plan](docs/desktop-phase5-plan.md).
-
-> **Preview only:** Phase 4 was closed by project decision, not by completion of every release test. Clean-checkout reproducibility, manual keyboard/accessibility checks, native WebView testing, and Windows installer execution remain unverified. Local x64 MSI and NSIS packaging builds succeeded, but the manual release workflow and authenticated download notice have not been exercised against a published release. The repository release helper `scripts/publish-release.ps1` bumps server and desktop versions together and dispatches the desktop installer workflow after creating the tagged release; installer generation and upload then run asynchronously in GitHub Actions. SHA-256 digest display is not independent publisher authentication. There is no automatic desktop updater. Do not distribute the scaffold until all required release gates have been validated.
+The web process never elevates itself or replaces its own files. A restricted local broker handles update requests. If a health or database preflight check fails, resolve the issue before retrying.
 
 ## Reports and backups
 
-Managers can create filtered reports and export them as CSV or Excel files. The Owner-only complete backup is a ZIP containing separate Excel workbooks for projects, people, and teams, with related time-entry data. It is intended for review and archival, not database restoration.
+Owners and Admins can create filtered reports and export them as CSV or Excel files. The Owner can download a complete archive ZIP containing separate workbooks for projects, people, and teams, including related time-entry data. Use this archive for review and record keeping; it is not a restorable database backup.
 
-> **SQLite restore:** The Excel archive is not a database snapshot. Offline SQLite backup and restore must be handled by an administrator with the Ora Windows service stopped. Keep a verified database copy before maintenance.
+> **SQLite backup and restore:** An administrator must stop the Ora Windows service before backing up or restoring the SQLite database. Keep a verified database copy before maintenance.
 
-### Updating Ora
+## Uninstall Ora
 
-`install.cmd` registers the `OraTrackingServiceUpdater` Windows service. The updater broker accepts only fixed local update commands through a restricted named pipe; its installation path and status file are pinned at installation.
+The Owner can open **Uninstall Ora** from the app navigation. First download the complete Excel archive. Then choose separately whether to preserve the app configuration, SQLite data, database backup, and custom logos in Documents, and whether to create separate project, team, and people inventories. Type `YES` to confirm. Requested exports and retained data are prepared before service or application removal. If a safety check, export, or service operation fails, the worker records its status and stops rather than proceeding with unsafe database removal. Older installations without the deletion broker require an elevated installer repair first.
 
-When a release is available, an owner or admin can select **Install update** in the app header. The external updater verifies the release, checks the existing service, configured port, HTTP health, installation path, and database, then migrates a staged database copy before activating the update. It stops and restarts `OraTimeTrackingService` only for activation, retains rollback and database backups, and checks Ora's HTTP health afterward. Older installations without the updater broker can be enrolled by running the external updater from an elevated PowerShell session.
+> **Separate products:** uninstalling Ora does not uninstall Ora Desktop. Remove it separately from Windows **Settings → Apps → Installed apps**.
 
-> **Legacy installation without the updater service:** the in-app update trigger cannot reach a broker that is not installed. Run the external updater from an elevated PowerShell session. It automatically detects the Ora installation at `%APPDATA%\Ora` or from the running `OraTimeTrackingService` working directory, so no path argument is required. For example: `& "$env:APPDATA\Ora\scripts\update.ps1"`. The updater installs or refreshes `OraTrackingServiceUpdater` after a newer app release has been activated and `OraTimeTrackingService` is healthy. If no newer release exists, no service bootstrap occurs; install/update Ora to a newer release first. Do not run this against a production installation without a verified database backup and the normal maintenance precautions.
+## Desktop preview
 
-While an update is in progress, Ora reports its status and tolerates the brief service interruption. The web process does not elevate itself or replace its own files; the broker must be running with an account authorized to update the installation.
+Ora Desktop is an early Windows companion panel for connecting to an Ora server. It supports the Timer, Projects, and read-only My hours views, plus named server profiles. It does not support report exports, and it is not included in Ora's server installer or updater. The window is fixed-size (380 × 680 px).
 
-> **Before maintenance:** keep a verified database backup. If a health or database preflight check fails, resolve the installation issue before retrying.
+> **Preview only:** native Windows/WebView behavior, Credential Manager, installer lifecycle, accessibility, and interactive two-server use have not been fully verified. Do not distribute this preview. Follow the [desktop user and test guide](src-tauri/README.md) for local setup and safe test steps; see the [release checklist](docs/desktop-release-checklist.md) for remaining gates.
 
 ## License
 

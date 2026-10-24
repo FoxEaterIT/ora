@@ -23,6 +23,9 @@ test("desktop entry edits stay on the contract fields and only the owner can del
 });
 
 test("desktop team reads stay on the collection and hide management routes", () => {
+  assert.equal(desktopRouteDecision("/api/desktop/session", "GET"), true);
+  assert.equal(desktopRouteDecision("/api/desktop/session?x=1", "GET"), false);
+  assert.equal(desktopRouteDecision("/api/desktop/session", "POST"), false);
   assert.equal(desktopRouteDecision("/api/teams", "GET"), true);
   assert.equal(desktopRouteDecision("/api/teams", "POST"), false);
   assert.equal(desktopRouteDecision("/api/teams/t1", "PATCH"), false);

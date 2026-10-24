@@ -7,13 +7,14 @@ Status: approved 2026-10-17. This is the Phase 1 contract for the Windows deskto
 | Decision | Rule |
 |---|---|
 | Client | Windows 10 and Windows 11, WebView2 (Tauri 2). No other OS in the first release. |
+| Server profiles | Multiple user-configured profiles are supported. Each has a normalized origin and isolated OS-protected token; switching profiles must never forward a token to another origin. |
 | Server | One updated Ora instance with persistent SQLite. Multi-instance hosting is out of scope and must not be assumed. |
 | Installer | Standalone Windows installer, built for each GitHub release. First release may be unsigned. Publish a checksum and verification instructions. SmartScreen warnings are accepted for that release. |
-| Delivery | Authenticated Ora users download the installer from the web app. The server installer also supplies the desktop client configuration, including the preconfigured server URL. |
+| Delivery | Authenticated Ora users download the standalone desktop installer from the web app. The user configures one or more Ora server profiles in the desktop client. |
 | Updates | Manual download and install only. No automatic desktop updater in the first release. |
 | Secrets | The client configuration contains no server secrets: no passwords, `AUTH_SECRET`, database credentials, or signing keys. |
 
-The server URL is installation configuration. Do not rebuild the installer once per Ora server.
+The server origin is user-configurable and may be saved in multiple named profiles. Desktop installers are standalone and are not rebuilt per Ora server. Profiles contain no credentials or tokens. HTTPS is allowed; each normalized HTTP origin requires explicit trust confirmation. Only origin roots are supported; credentials, paths, queries, and fragments are rejected.
 
 ## 2. Desktop API allowlist
 

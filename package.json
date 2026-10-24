@@ -10,7 +10,7 @@
     "start": "prisma migrate deploy && next start --hostname 127.0.0.1",
     "lint": "eslint",
     "check:i18n": "tsx src/i18n/check-messages.ts",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test --test-timeout=180000 tests/*.test.ts"
   },
   "dependencies": {
     "@emnapi/core": "^1.11.3",

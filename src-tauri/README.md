@@ -1,7 +1,106 @@
-# Ora Desktop scaffold
+# Ora Desktop Preview
 
-Before treating the desktop client as releasable, complete the remaining phases in [`../docs/desktop-release-checklist.md`](../docs/desktop-release-checklist.md). The approved product and security rules are in [`../docs/desktop-security-contract.md`](../docs/desktop-security-contract.md). Phase 3 is considered complete by project decision; clean-VM and cross-account validation could not be performed in the available environment. This is a documented validation limitation, not a claim that those tests passed.
+Ora Desktop is a Windows companion panel for tracking time on an Ora server. This guide explains what the preview can do, how to try it safely, and what is not yet verified.
 
-This Tauri 2 Windows panel is an initial scaffold, not a supported release. The UI is focused on time tracking, with branding, appearance, theme, and account controls in the header. Sign-in uses the dedicated `/api/desktop/login` endpoint with Ora credentials; the legacy browser handoff endpoints are disabled. HTTP and HTTPS server origins are supported; remote HTTP is unencrypted and requires an explicit per-origin confirmation, so use it only on a trusted network. The client validates API paths and their resolved origin and rejects redirects before token forwarding. The Tauri capability grants only the fixed keyring session commands, and the global Tauri bridge is disabled. The static production frontend bundles `@tauri-apps/api`, hashes its inline script and style in the CSP, and produces a content-hashed main HTML file. Do not distribute this scaffold: installer packaging has been built locally, but clean-checkout reproducibility, full assistive-technology/native WebView testing, visual review/replacement of the valid 256×256 ICO scaffold, release version-bump policy, signing, dependency remediation or acceptance, and release security review remain outstanding. Source review also removed duplicate connection controls and added visible keyboard focus indicators. The UI now supports English, Italian, and Spanish with a persisted locale preference, but broader keyboard/accessibility, translation, and native WebView review remains incomplete.
+## What you can do
 
-For local testing, `npm run seed:desktop-demo` creates or resets `owner.demo@ora.local` / `OraDemoOwner2026!` and `user.demo@ora.local` / `OraDemoUser2026!`; never use these credentials in production. The desktop panel is not integrated into the Windows Ora installer or updater. `.github/workflows/desktop-release.yml` is a manual-only workflow: it builds x64 MSI/NSIS installers for an existing published stable release whose notes contain `Ora-Desktop-Release: true`, after checking the tag against both desktop version files. It attaches `ora-desktop-v<version>.msi`, `ora-desktop-v<version>-setup.exe`, and `SHA256SUMS.txt`; it does not create releases or change versions. Build prerequisites include Rust, the Tauri CLI, and the Windows WebView2 runtime; use the official Tauri setup guidance before attempting a local build. `npm run desktop:build:frontend` creates a static frontend artifact whose main HTML filename is content-hashed and injects hashes for its inline script and style into a restrictive CSP. Tauri uses that artifact for production builds while retaining `desktop:dev` only for development. The connect policy allows both HTTP and HTTPS so users can connect to Ora servers on either scheme; HTTP is unencrypted, so use it only on a trusted network. The client requires explicit confirmation before using remote HTTP origins. This is an implementation step, not evidence that packaging is ready for distribution. A local release-mode Tauri executable build with `custom-protocol` succeeded, but installer bundling, clean-checkout reproducibility, Windows VM validation, and release security review remain outstanding. Local `npm audit` reports unresolved dependency vulnerabilities; `npm run lint` completes with warnings. Remote LAN HTTP is supported by explicit deployment choice, but is unencrypted; use it only on a trusted network and prefer HTTPS. The manager update-status polling in the web shell stops after three consecutive request, HTTP, or response-parsing errors to avoid continued failed polling.
+| Feature | Desktop preview behavior |
+| --- | --- |
+| Timer | Start and stop a timer on a project |
+| Projects | View and manage supported project details; team/user directories, archiving, and deletion are excluded |
+| My hours | View your own hours; read-only, with no manual create, edit, or delete |
+| Reports | Report exports are not available |
+| Server profiles | Save multiple server profiles and use one at a time |
+| Sign-in | Store a separate session credential for each server origin in Windows Credential Manager |
+| Language | Use English, Italian, or Spanish |
+
+The desktop panel is separate from the Ora web server. Installing or updating Ora does not install or update Ora Desktop.
+
+## Try the preview locally
+
+### Requirements
+
+- Windows, Node.js 20 or newer, and npm dependencies installed for the Ora repository.
+- Rust, the Tauri CLI, and Microsoft WebView2.
+- A disposable Ora server/database and test accounts.
+
+See the [Tauri Windows prerequisites](https://tauri.app/start/prerequisites/) for current setup instructions. Do not seed demo users into a database containing real users: the seed script resets the demo accounts when they already exist.
+
+### Start the app
+
+From the repository root, install dependencies if needed, then start the web server:
+
+```powershell
+npm install
+npm run desktop:dev
+```
+
+The Tauri configuration uses `npm run desktop:dev` as its development server on `http://localhost:33334`. In another PowerShell window, start Tauri from the `src-tauri` directory:
+
+```powershell
+cd src-tauri
+cargo tauri dev
+```
+
+If `cargo tauri` is unavailable, install the Tauri CLI using the official setup guide. When the panel opens, enter the origin of your test server and sign in with an Ora account.
+
+### Optional demo accounts
+
+The script `scripts/seed-desktop-demo.ts` creates or resets two users in the database selected by the app's Prisma configuration:
+
+- Owner: `owner.demo@ora.local` / `OraDemoOwner2026!`
+- User: `user.demo@ora.local` / `OraDemoUser2026!`
+
+Run the script only against a disposable test database. It is not a production setup command and must never be used with real user data or an exposed server.
+
+### Build the desktop frontend
+
+To generate the static frontend used by production Tauri builds, run this from the repository root:
+
+```powershell
+npm run desktop:build:frontend
+```
+
+The build generates a content-named HTML entry point and a restrictive Content Security Policy. The development server is used only for local development; production builds use the generated static files.
+
+## Test the main workflows
+
+Use test accounts and test servers throughout.
+
+1. **Sign-in and session restore:** sign in, restart the panel, confirm the session restores, then sign out.
+2. **Timer:** start and stop a timer on a test project.
+3. **Projects:** confirm only desktop-supported actions are available.
+4. **My hours:** confirm you can see only your own entries and cannot create, edit, or delete them.
+5. **Two server profiles:** sign in to two test servers, switch between them, and confirm each profile uses only its own session. Remove one profile and confirm the other still works.
+6. **Offline recovery:** temporarily stop one test server, confirm the panel reports the connection problem, then retry after the server returns.
+7. **Restricted actions:** confirm report export and other unsupported desktop API actions are denied.
+8. **Windows credential storage:** verify session restore and profile isolation under the Windows account running the test. Cross-account isolation still needs a separate Windows-account test.
+
+The app asks for confirmation before removing a profile. It rejects API redirects and requests outside the desktop allowlist before forwarding a session token. Temporary restore errors should retain credentials; explicit 401/403 responses should remove only the selected profile's rejected credential.
+
+## Security and network use
+
+Sign in with your Ora account through the dedicated `/api/desktop/login` endpoint. Desktop access is limited to an allowlist of API routes; it does not provide all web-app capabilities.
+
+Both HTTP and HTTPS server origins are supported. **HTTP traffic is unencrypted.** Use HTTP only on a trusted network; the app requires explicit approval for remote HTTP origins. Prefer HTTPS whenever available.
+
+Session tokens are stored in Windows Credential Manager under a key derived from the normalized server origin. Remembered HTTP approvals are also kept separately per origin. These protections are implemented in source, but native Windows Credential Manager behavior has not yet been fully validated.
+
+## Distribution and updates
+
+Ora Desktop is not included in the Ora server installer or server updater. The manual [desktop release workflow](../.github/workflows/desktop-release.yml) builds MSI and NSIS installers for an already-published stable release marked `Ora-Desktop-Release: true`; it attaches installer files and `SHA256SUMS.txt`, but does not publish releases or change version numbers.
+
+The preview must not be distributed until the open release checks are complete. See the [desktop release checklist](../docs/desktop-release-checklist.md), [Phase 5 plan](../docs/desktop-phase5-plan.md), and [desktop security contract](../docs/desktop-security-contract.md) for engineering and release details.
+
+## Known validation gaps
+
+The following have not been verified end to end:
+
+- Interactive use in the native Tauri window and Windows WebView.
+- Windows Credential Manager behavior, including isolation between Windows accounts.
+- Clean-machine installation and reproducible packaging.
+- Installer, repair, update, and uninstall lifecycle.
+- Interactive use with two separate Ora servers.
+- Release security review and accessibility checks.
+
+Automated adapter tests and frontend builds cover only parts of the code; they do not prove these Windows behaviors. Phase 3 was marked complete by project decision, but clean-machine and cross-account tests were not run.

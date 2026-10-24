@@ -5,6 +5,7 @@ const routes = [
   { path: /^\/api\/entries\/[^/]+$/, methods: ["PATCH", "DELETE"] },
   { path: /^\/api\/teams$/, methods: ["GET"] },
   { path: /^\/api\/desktop\/config$/, methods: ["GET"] },
+  { path: /^\/api\/desktop\/session$/, methods: ["GET"] },
   { path: /^\/api\/desktop\/logout$/, methods: ["POST"] },
 ] as const;
 
@@ -17,6 +18,6 @@ export function desktopRouteDecision(pathWithQuery: string, method: string) {
   if (url.pathname === "/api/projects" && method === "POST" && url.searchParams.size > 0) return false;
   if (/^\/api\/projects\/[^/]+$/.test(url.pathname) && url.searchParams.size > 0) return false;
   if (/^\/api\/entries\/[^/]+$/.test(url.pathname) && url.searchParams.size > 0) return false;
-  if (["/api/teams", "/api/desktop/config", "/api/desktop/logout"].includes(url.pathname) && url.searchParams.size > 0) return false;
+  if (["/api/teams", "/api/desktop/config", "/api/desktop/session", "/api/desktop/logout"].includes(url.pathname) && url.searchParams.size > 0) return false;
   return true;
 }

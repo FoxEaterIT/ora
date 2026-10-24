@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import {
   APP_DESCRIPTION,
   APP_LOGO_DARK,
@@ -10,16 +9,15 @@ import {
   PROJECT_COLORS,
   TEAM_COLORS,
 } from "@/lib/app-config";
-import { desktopForbidden, desktopUserForAllowedRoute } from "@/lib/desktop-auth";
-
-const noStore = { "Cache-Control": "no-store", Pragma: "no-cache" };
+import { desktopForbidden, desktopUserForAllowedRoute, desktopJson, runWithDesktopRequest } from "@/lib/desktop-auth";
 
 /** Public branding and theme settings only. Server secrets are not part of this payload. */
 export async function GET(request: Request) {
-  const desktop = await desktopUserForAllowedRoute("/api/desktop/config");
+  return runWithDesktopRequest(request, async () => {
+  const desktop = await desktopUserForAllowedRoute(request.url);
   if (new URL(request.url).searchParams.size > 0) return desktopForbidden();
   if (!desktop.desktop || !desktop.user) return desktopForbidden();
-  return NextResponse.json({
+  return desktopJson({
     user: { firstName: desktop.user.firstName, email: desktop.user.email, name: `${desktop.user.firstName} ${desktop.user.lastName}`.trim() },
     config: {
       name: APP_NAME,
@@ -32,5 +30,6 @@ export async function GET(request: Request) {
       projectColors: PROJECT_COLORS,
       teamColors: TEAM_COLORS,
     },
-  }, { headers: noStore });
+  });
+  });
 }

@@ -1,13 +1,9 @@
 use keyring::Entry;
 
 const KEYRING_SERVICE: &str = "OraDesktop";
-const SESSION_ACCOUNT: &str = "session";
-
 fn session_entry(account: &str) -> Result<Entry, String> {
-    if account != SESSION_ACCOUNT {
-        return Err("Invalid account identifier".into());
-    }
-    Entry::new(KEYRING_SERVICE, SESSION_ACCOUNT)
+    validate_keyring_account(account)?;
+    Entry::new(KEYRING_SERVICE, account)
         .map_err(|_| "Secure storage is unavailable".to_owned())
 }
 
@@ -55,7 +51,7 @@ fn delete_desktop_token(account: String) -> Result<(), String> {
 }
 
 fn validate_keyring_account(account: &str) -> Result<(), String> {
-    if account == SESSION_ACCOUNT {
+    if account.len() == 64 && account.bytes().all(|byte| byte.is_ascii_hexdigit()) {
         Ok(())
     } else {
         Err("Invalid account identifier".into())
@@ -67,10 +63,11 @@ mod tests {
     use super::{validate_keyring_account, validate_token};
 
     #[test]
-    fn credential_entry_is_fixed_to_the_single_session_record() {
-        assert!(validate_keyring_account("session").is_ok());
+    fn credential_entries_are_scoped_to_a_hashed_server_origin() {
+        assert!(validate_keyring_account(&"a".repeat(64)).is_ok());
         assert!(validate_keyring_account("user@example.com").is_err());
         assert!(validate_keyring_account("../session").is_err());
+        assert!(validate_keyring_account(&"g".repeat(64)).is_err());
     }
 
     #[test]
@@ -81,6 +78,7 @@ mod tests {
         assert!(validate_token("token\\nwith-control").is_err());
         assert!(validate_token(&"a".repeat(513)).is_err());
     }
+
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

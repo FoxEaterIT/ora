@@ -85,7 +85,53 @@ Approved decisions and implementation/validation plan: [`desktop-phase5-plan.md`
 
 **Gate:** Phase 5 may be closed by project decision with unrun Windows install/upgrade/uninstall/recovery tests explicitly documented as unverified. This does not satisfy the Phase 6 release-validation gate.
 
-## Phase 6 — Release validation
+## Phase 6 — Full web-app parity
+
+**Approved scope:** all functions permitted by the current desktop security contract, for Owner, Admin, and User accounts that are already active. The desktop does not include setup/activation, people/team administration, reports/export, backup, account management, server update, or Ora server uninstall. Those web functions remain intentionally unavailable in the desktop unless a separate security decision changes the contract. The desktop remains a client of an Ora server; it does not bundle or replace the server/database. Target Windows 10/11 and EN/IT/ES. Keep the window fixed and non-resizable at 380 × 680 px.
+
+The current desktop API contract exposes only a subset of web functionality. Visual similarity is not enough: each in-scope page/action needs an appropriate server-enforced API policy. Do not weaken the contract or grant desktop sessions browser-cookie access to achieve parity.
+
+### Approved product decisions
+
+| Topic | Decision |
+|---|---|
+| Feature scope | All desktop-permitted client functions; retain existing security exclusions for management, reports/export, backup, account/setup, server updates, and server uninstall. |
+| Roles | Owner, Admin, and User may sign in with an active account; role authorization continues to apply. |
+| Server profiles | Users can configure and save multiple Ora server profiles, select/switch profiles, and keep credentials/session tokens isolated per server. |
+| Server origins | HTTPS is supported. HTTP requires explicit trust confirmation for each origin. Never store credentials or tokens in URLs or plaintext configuration. |
+| Window/platform/locales | Fixed 380 × 680 px, non-resizable; Windows 10/11; English, Italian, and Spanish. |
+| Server topology | Desktop connects to an existing Ora server and does not bundle a local Ora server/database. |
+
+### Implementation checklist
+
+#### Assistant implementation TODO (incremental; separate from Windows validation)
+
+- [x] Add deterministic session-generation tests for stale responses and overlapping profile switches; guard desktop API responses and profile connection results so stale requests cannot update branding, projects, entries, or user state. Native WebView race behavior still needs Windows validation.
+- [x] Harden restore failure handling: validate the active normalized origin before keyring access, preserve credentials on transient failures, discard only the matching profile credential after explicit 401/403, and ignore late restore completions after profile switches. Adapter-level rejection/isolation tests pass; interactive UI and login-flow failure tests remain a follow-up.
+- [x] Reconcile README, desktop README, parity inventory, and this checklist with implemented source behavior and clearly distinguish automated coverage from native validation. Security-contract review and broader security sign-off remain separate release gates.
+- [x] Complete the first shared Projects workflow: `src/components/projects-view.tsx` is mounted in the Tauri shell through `src-tauri/projects-adapter.ts`; it uses the approved `/api/desktop/session` route, existing project DTO, and desktop allowlist. Desktop hides web-only team/user assignment and manager archive/delete controls; all roles retain allowed project create/edit/member assignment capabilities. Adapter, role-policy, API-contract, and frontend-build checks pass. Native Tauri interaction still requires Windows validation.
+- [x] Extract shared Timer, My hours, and Projects workflows with separate web/Tauri adapters. My hours remains read-only in desktop under the current API contract.
+- [ ] Decide whether the approved read-only Teams view has enough value to retain; extract it only if included.
+- [x] Add automated API-boundary coverage for route/method allowlisting, normalized origin, token snapshot/omission on login, redirect rejection configuration, and stale response rejection. Existing legacy-panel behaviors still need broader focused coverage.
+- [x] For the Projects slice, run tests, TypeScript, i18n, desktop frontend build, lint, and whitespace checks; update user-facing and developer documentation/history. Continue this discipline for each following slice.
+
+**Current step:** review read-only Teams against the approved desktop scope and decide whether to retain/extract it. Timer, My hours, and Projects use shared views with separate web/Tauri adapters. Native Windows keyring/WebView/lifecycle tests, and two-live-server end-to-end testing, require a Windows/user environment and are not counted as assistant implementation tasks.
+
+- [x] **Parity inventory:** mapped web routes, navigation, role-specific controls, and workflows to the approved scope in [`desktop-parity-inventory.md`](desktop-parity-inventory.md). The inventory identifies the current API coverage and a possible session/profile endpoint gap; implementation remains pending.
+- [x] **Server profiles and onboarding design:** documented in [`desktop-parity-inventory.md`](desktop-parity-inventory.md). Profiles store only a user label and validated server origin in local preferences; duplicate normalized origins are rejected. Tokens are stored separately in the OS keyring under a deterministic per-origin account key (never in preferences); profile switching validates/restores only that origin's token, and profile removal revokes best-effort then deletes only that origin's keyring item. HTTP trust is remembered per normalized origin and must be reconfirmed for a new origin. Origins remain scheme/host/port only—no URL credentials, path, query, or fragment—so reverse-proxy base paths are not supported by this client contract. First launch opens profile setup; users can add/select/edit/remove profiles later. Unreachable servers retain their profile and show retry/offline state without sending credentials to another origin.
+- [x] **Authentication/session UX design:** documented login, restore, logout, expiry/revocation, deactivation/password change, recovery, offline, and multi-profile behavior in [`desktop-parity-inventory.md`](desktop-parity-inventory.md). UI/API implementation and tests remain pending.
+- [x] **API and authorization gap analysis:** recorded the route/action mapping and minimum safe API changes in [`desktop-parity-inventory.md`](desktop-parity-inventory.md), including a narrowly allowlisted session endpoint, membership-scoped team reads, explicit safe mutation/entry DTOs, and no-store desktop responses. Initial implementation now adds the session endpoint, safe project/entry mutation DTOs, and no-store headers on covered successful responses; remaining error-path consistency and broader integration coverage are pending. No authorization was broadened.
+- [x] **Shared UI architecture decision:** source review and the recommended shared-client-component architecture with web/Tauri adapters are documented in [`desktop-parity-inventory.md`](desktop-parity-inventory.md). Code extraction remains pending until the desktop API gaps are implemented and tested.
+- [x] **Parity details design:** documented locale, branding/theme isolation, role-based navigation, read-only team behavior, and fixed-window accessibility/layout requirements in [`desktop-parity-inventory.md`](desktop-parity-inventory.md). The standalone UI still has duplicate strings and is not yet integrated with safe server config; implementation remains pending.
+- [x] **Desktop UX design:** documented server identity, loading/empty/error/offline/retry/session-expiry states, safe write/reconnect behavior, confirmations, keyboard/focus, and diagnostics requirements in [`desktop-parity-inventory.md`](desktop-parity-inventory.md). Implementation and UI validation remain pending.
+- [x] **Security review plan:** detailed origin, HTTP trust, token, redirect, CSP/Tauri capability, server authorization, DTO/no-store, untrusted-content, and persistence checks are recorded in [`desktop-parity-inventory.md`](desktop-parity-inventory.md). Actual security review remains pending implementation.
+- [x] **Automated coverage plan:** unit/API/UI test matrix and browser-vs-desktop comparison procedure are recorded in [`desktop-parity-inventory.md`](desktop-parity-inventory.md). Tests and comparison evidence remain pending implementation.
+- [ ] **Build/runtime validation:** verify `cargo run` development and production MSI/NSIS builds show the same intended in-scope Ora interface; confirm fixed window dimensions, profile behavior, server outage handling, clean install, and upgrade. Do not publish a release as part of implementation.
+- [ ] **Docs and gate:** maintain this technical checklist and update the user README only with completed user-facing behavior and requirements—not project todo lists. Keep desktop distribution disabled until parity, security review, and Windows runtime tests pass.
+
+**Parity gate:** do not claim equivalence while any in-scope page, role behavior, locale/theme state, or workflow is missing. Parity means the approved desktop scope, not every web administration feature. Changes to the exclusions or security contract require a separate explicit approval before implementation.
+
+## Phase 7 — Release validation
 
 - [ ] Build and install from a clean Windows VM with only documented prerequisites.
 - [ ] Test owner, admin, and standard user sign-in; invalid credentials; deactivated/passwordless users; session expiry/revocation; and password change/reset.

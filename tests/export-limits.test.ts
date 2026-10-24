@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { exportLimitError, buildExportResponse } from "../src/app/api/export/route";
+import { buildExportResponse } from "@/lib/export-response";
+import { exportLimitError } from "@/lib/export-limits";
 
 test("report export row limit accepts 10,000 and rejects 10,001", () => {
   assert.equal(exportLimitError(9_999, 1), null);

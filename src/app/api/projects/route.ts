@@ -6,7 +6,29 @@ import { getCurrentUser, isManager } from "@/lib/auth";
 import { fullName } from "@/lib/users";
 import { canCreateProject } from "@/lib/project-policy";
 import { requestMessages } from "@/i18n/request";
-import { desktopUserForAllowedRoute, desktopForbidden } from "@/lib/desktop-auth";
+import { desktopUserForAllowedRoute, desktopForbidden, runWithDesktopRequest } from "@/lib/desktop-auth";
+
+function serializeDesktopProject(project: {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  archived: boolean;
+  team: { id: string; name: string } | null;
+  members: { user: { id: string; firstName: string; lastName: string; email: string } }[];
+  _count: { entries: number };
+}) {
+  return {
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    color: project.color,
+    archived: project.archived,
+    team: project.team ? { id: project.team.id, name: project.team.name } : null,
+    members: project.members.map(({ user }) => ({ user: { id: user.id, name: fullName(user), email: user.email } })),
+    hasEntries: project._count.entries > 0,
+  };
+}
 
 const schema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -17,7 +39,8 @@ const schema = z.object({
 });
 
 export async function GET(request: Request) {
-  const desktop = await desktopUserForAllowedRoute("/api/projects");
+  return runWithDesktopRequest(request, async () => {
+  const desktop = await desktopUserForAllowedRoute(request.url);
   if (desktop.desktop && new URL(request.url).searchParams.size > 0) return desktopForbidden();
   const me = desktop.desktop ? desktop.user : await getCurrentUser();
   if (desktop.desktop && !me) return desktopForbidden();
@@ -33,27 +56,20 @@ export async function GET(request: Request) {
     orderBy: [{ archived: "asc" }, { name: "asc" }],
   });
   return NextResponse.json({
-    projects: projects.map((project) => desktop.desktop ? ({
-      id: project.id,
-      name: project.name,
-      description: project.description,
-      color: project.color,
-      archived: project.archived,
-      team: project.team ? { id: project.team.id, name: project.team.name } : null,
-      members: project.members.map((member) => ({ user: { id: member.user.id, name: fullName(member.user), email: member.user.email } })),
-      hasEntries: project._count.entries > 0,
-    }) : ({
+    projects: projects.map((project) => desktop.desktop ? serializeDesktopProject(project) : ({
       ...project,
       members: project.members.map((member) => ({
         ...member,
         user: { id: member.user.id, name: fullName(member.user), email: member.user.email },
       })),
     })),
-  }, desktop.desktop ? { headers: { "Cache-Control": "no-store" } } : undefined);
+  }, desktop.desktop ? { headers: { "Cache-Control": "no-store", Pragma: "no-cache" } } : undefined);
+  });
 }
 
 export async function POST(request: Request) {
-  const desktop = await desktopUserForAllowedRoute("/api/projects");
+  return runWithDesktopRequest(request, async () => {
+  const desktop = await desktopUserForAllowedRoute(request.url);
   if (desktop.desktop && new URL(request.url).searchParams.size > 0) return desktopForbidden();
   const me = desktop.desktop ? desktop.user : await getCurrentUser();
   if (desktop.desktop && !me) return desktopForbidden();
@@ -77,7 +93,21 @@ export async function POST(request: Request) {
       },
     },
     include: { team: true, members: true },
+  }).catch((error: unknown) => {
+    if (error instanceof Error && "code" in error && error.code === "P2003") return null;
+    throw error;
   });
+  if (!project) return NextResponse.json({ error: t.api.invalidProject }, { status: 400 });
+
+  if (desktop.desktop) {
+    const created = await prisma.project.findUnique({
+      where: { id: project.id },
+      include: { team: true, members: { where: { user: { deactivatedAt: null } }, include: { user: true } }, _count: { select: { entries: true } } },
+    });
+    if (!created) return desktopForbidden();
+    return NextResponse.json({ project: serializeDesktopProject(created) }, { status: 201, headers: { "Cache-Control": "no-store", Pragma: "no-cache" } });
+  }
 
   return NextResponse.json({ project }, { status: 201 });
+  });
 }

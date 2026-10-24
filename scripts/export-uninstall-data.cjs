@@ -27,18 +27,19 @@ async function writeWorkbook(fileName, sheetName, columns, rows) {
 async function main() {
   // Use raw SQL so the export remains independent of generated Prisma model delegates.
   // Password hashes and other authentication secrets are intentionally excluded.
+  const displayName = "trim(coalesce(u.firstName, '') || ' ' || coalesce(u.lastName, ''))";
   const [projects, teams, users] = await Promise.all([
     prisma.$queryRawUnsafe(`SELECT p.name, p.description, p.color, p.archived, t.name AS team, p.createdAt,
-      (SELECT group_concat(u.name || ' <' || u.email || '> ', ', ') FROM ProjectMember pm JOIN User u ON u.id = pm.userId WHERE pm.projectId = p.id) AS members
+      (SELECT group_concat(${displayName} || ' <' || u.email || '> ', ', ') FROM ProjectMember pm JOIN User u ON u.id = pm.userId WHERE pm.projectId = p.id) AS members
       FROM Project p LEFT JOIN Team t ON t.id = p.teamId ORDER BY p.name`),
     prisma.$queryRawUnsafe(`SELECT t.name, t.description, t.color, t.createdAt,
-      (SELECT group_concat(u.name || ' <' || u.email || '> ', ', ') FROM TeamMember tm JOIN User u ON u.id = tm.userId WHERE tm.teamId = t.id) AS members,
+      (SELECT group_concat(${displayName} || ' <' || u.email || '> ', ', ') FROM TeamMember tm JOIN User u ON u.id = tm.userId WHERE tm.teamId = t.id) AS members,
       (SELECT group_concat(p.name, ', ') FROM Project p WHERE p.teamId = t.id) AS projects
       FROM Team t ORDER BY t.name`),
-    prisma.$queryRawUnsafe(`SELECT u.name, u.email, u.role, u.createdAt,
+    prisma.$queryRawUnsafe(`SELECT ${displayName} AS name, u.email, u.role, u.createdAt,
       (SELECT group_concat(t.name, ', ') FROM TeamMember tm JOIN Team t ON t.id = tm.teamId WHERE tm.userId = u.id) AS teams,
       (SELECT group_concat(p.name, ', ') FROM ProjectMember pm JOIN Project p ON p.id = pm.projectId WHERE pm.userId = u.id) AS projects
-      FROM User u ORDER BY u.name`),
+      FROM User u ORDER BY name`),
   ]);
 
   await writeWorkbook("Ora-Projects.xlsx", "Projects", [

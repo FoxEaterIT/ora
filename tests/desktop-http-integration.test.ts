@@ -99,21 +99,34 @@ test("desktop HTTP auth survives a Next process restart and enforces the contrac
     assert.ok(token);
     assert.equal(authenticated.body.user?.role, "USER");
 
+    const session = await request("/api/desktop/session", token);
+    assert.equal(session.status, 200, await session.clone().text());
+    assert.equal(session.headers.get("cache-control"), "no-store");
+    const sessionBody = await session.json() as { user: Record<string, unknown> };
+    assert.deepEqual(Object.keys(sessionBody.user).sort(), ["email", "firstName", "id", "lastName", "name", "role"]);
+    const rejectedSession = await request("/api/desktop/session?unexpected=1", token);
+    assert.equal(rejectedSession.status, 403);
+    assert.equal(rejectedSession.headers.get("cache-control"), "no-store");
+
     const profile = await request("/api/desktop/config", token);
     assert.equal(profile.status, 200);
     assert.equal(profile.headers.get("cache-control"), "no-store");
     assert.ok((await profile.json() as { config: { name: string } }).config.name);
 
     const projects = await request("/api/projects", token);
-    assert.equal(projects.status, 200);
+    assert.equal(projects.status, 200, await projects.clone().text());
     const createdProject = await request("/api/projects", token, { method: "POST", body: JSON.stringify({ name: "Created by desktop", memberIds: [user.id] }) });
-    assert.equal(createdProject.status, 201);
-    const createdProjectBody = await createdProject.json() as { project: { id: string } };
+    assert.equal(createdProject.status, 201, await createdProject.clone().text());
+    const createdProjectBody = await createdProject.json() as { project: Record<string, unknown> };
+    assert.equal(createdProject.headers.get("cache-control"), "no-store");
+    assert.deepEqual(Object.keys(createdProjectBody.project).sort(), ["archived", "color", "description", "hasEntries", "id", "members", "name", "team"]);
     const forbiddenUserTeam = await request(`/api/projects/${project.id}`, token, { method: "PATCH", body: JSON.stringify({ teamId: team.id }) });
-    assert.equal(forbiddenUserTeam.status, 403);
+    assert.equal(forbiddenUserTeam.status, 403, await forbiddenUserTeam.clone().text());
+    assert.equal(forbiddenUserTeam.headers.get("cache-control"), "no-store");
 
     const teamsResponse = await request("/api/teams", token);
-    assert.equal(teamsResponse.status, 200);
+    assert.equal(teamsResponse.status, 200, await teamsResponse.clone().text());
+    assert.equal(teamsResponse.headers.get("cache-control"), "no-store");
     const teamsBody = await teamsResponse.json() as { teams: Array<Record<string, unknown>> };
     assert.equal(teamsBody.teams.length, 1);
     assert.equal("color" in teamsBody.teams[0], false);
@@ -124,18 +137,34 @@ test("desktop HTTP auth survives a Next process restart and enforces the contrac
 
     const ownEntries = await request("/api/entries?mine=1", token);
     assert.equal(ownEntries.status, 200);
+    assert.equal(ownEntries.headers.get("cache-control"), "no-store");
     assert.equal(((await ownEntries.json()) as { entries: unknown[] }).entries.length, 0);
-    assert.equal((await request("/api/entries", token)).status, 403);
-    assert.equal((await request(`/api/entries/${foreignEntry.id}`, token, { method: "PATCH", body: JSON.stringify({ description: "No" }) })).status, 403);
-    assert.equal((await request(`/api/entries/${foreignEntry.id}`, token, { method: "DELETE" })).status, 403);
-    assert.ok([401, 403].includes((await request("/api/export", token)).status));
-    assert.equal((await request("/api/teams", token, { method: "POST", body: JSON.stringify({ name: "Forbidden" }) })).status, 403);
+    const unfilteredEntries = await request("/api/entries", token);
+    assert.equal(unfilteredEntries.status, 403);
+    assert.equal(unfilteredEntries.headers.get("cache-control"), "no-store");
+    const foreignPatch = await request(`/api/entries/${foreignEntry.id}`, token, { method: "PATCH", body: JSON.stringify({ description: "No" }) });
+    assert.equal(foreignPatch.status, 403, await foreignPatch.clone().text());
+    assert.equal(foreignPatch.headers.get("cache-control"), "no-store");
+    const foreignDelete = await request(`/api/entries/${foreignEntry.id}`, token, { method: "DELETE" });
+    assert.equal(foreignDelete.status, 403);
+    assert.equal(foreignDelete.headers.get("cache-control"), "no-store");
+    const forbiddenExport = await request("/api/export", token);
+    assert.equal(forbiddenExport.status, 403, await forbiddenExport.clone().text());
+    assert.equal(forbiddenExport.headers.get("cache-control"), "no-store");
+    const forbiddenTeamCreate = await request("/api/teams", token, { method: "POST", body: JSON.stringify({ name: "Forbidden" }) });
+    assert.equal(forbiddenTeamCreate.status, 403, await forbiddenTeamCreate.clone().text());
+    assert.equal(forbiddenTeamCreate.headers.get("cache-control"), "no-store");
     assert.equal((await request(`/api/desktop/config?unexpected=1`, token)).status, 403);
 
     const ownEntryResponse = await request("/api/entries", token, { method: "POST", body: JSON.stringify({ projectId: project.id, description: "My entry", start: "2026-10-17T11:00:00.000Z", end: "2026-10-17T12:00:00.000Z" }) });
     assert.equal(ownEntryResponse.status, 201);
-    const ownEntry = (await ownEntryResponse.json() as { entry: { id: string } }).entry;
-    assert.equal((await request(`/api/entries/${ownEntry.id}`, token, { method: "PATCH", body: JSON.stringify({ description: "Updated" }) })).status, 200);
+    assert.equal(ownEntryResponse.headers.get("cache-control"), "no-store");
+    const ownEntryBody = await ownEntryResponse.json() as { entry: Record<string, unknown> };
+    assert.deepEqual(Object.keys(ownEntryBody.entry).sort(), ["createdAt", "description", "end", "id", "project", "projectId", "start", "user", "userId"]);
+    const ownEntry = ownEntryBody.entry;
+    const patchedEntry = await request(`/api/entries/${ownEntry.id}`, token, { method: "PATCH", body: JSON.stringify({ description: "Updated" }) });
+    assert.equal(patchedEntry.status, 200);
+    assert.equal(patchedEntry.headers.get("cache-control"), "no-store");
     assert.equal((await request(`/api/entries/${ownEntry.id}`, token, { method: "DELETE" })).status, 200);
     assert.equal((await request(`/api/projects/${createdProjectBody.project.id}`, token, { method: "DELETE" })).status, 403);
 
@@ -145,7 +174,7 @@ test("desktop HTTP auth survives a Next process restart and enforces the contrac
     assert.equal((await request(`/api/projects/${project.id}`, managerToken, { method: "PATCH", body: JSON.stringify({ teamId: team.id, archived: true }) })).status, 200);
     assert.equal((await request(`/api/entries/${foreignEntry.id}`, managerToken, { method: "PATCH", body: JSON.stringify({ description: "must not edit" }) })).status, 403);
     assert.equal((await request(`/api/entries/${foreignEntry.id}`, managerToken, { method: "DELETE" })).status, 403);
-    assert.equal((await request(`/api/projects/${project.id}`, managerToken, { method: "DELETE" })).status, 409);
+    assert.equal((await request(`/api/projects/${project.id}`, managerToken, { method: "DELETE" })).status, 403);
 
     const allowedMethods: Array<[string, string, string?]> = [
       ["GET", "/api/projects"], ["POST", "/api/projects", JSON.stringify({ name: "Method test" })],
@@ -172,7 +201,7 @@ test("desktop HTTP auth survives a Next process restart and enforces the contrac
     const ownerLogin = await login(owner.email);
     assert.equal(ownerLogin.response.status, 200);
     const ownerToken = ownerLogin.body.session!;
-    assert.equal((await request(`/api/projects/${project.id}`, ownerToken, { method: "DELETE" })).status, 409);
+    assert.equal((await request(`/api/projects/${project.id}`, ownerToken, { method: "DELETE" })).status, 403);
     assert.ok([401, 403].includes((await request("/api/users", ownerToken)).status));
   } finally {
     if (server) await stopServer(server);
