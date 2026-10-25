@@ -102,32 +102,41 @@ export default function TeamsPage() {
             <Field label={t.description}>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </Field>
-            <div className="flex gap-2">
-              {COLORS.map((color) => (
-                <button
-                  type="button"
-                  key={color}
-                  onClick={() => setForm({ ...form, color })}
-                  className="h-8 w-8 rounded-full"
-                  style={{ background: color, outline: form.color === color ? `2px solid ${color}` : undefined }}
-                />
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {users.map((user) => {
-                const on = form.memberIds.includes(user.id);
-                return (
+            <fieldset className="min-w-0">
+              <legend className="mb-2 text-sm font-medium text-muted">{messages.projectsPage.color}</legend>
+              <div className="flex gap-2">
+                {COLORS.map((color) => (
                   <button
                     type="button"
-                    key={user.id}
-                    onClick={() => toggle(user.id)}
-                    className={`rounded-full border px-3 py-1 text-sm ${on ? "border-brand bg-brand text-white" : "border-line"}`}
-                  >
-                    {user.name}
-                  </button>
-                );
-              })}
-            </div>
+                    key={color}
+                    aria-label={`${messages.projectsPage.color} ${color}`}
+                    aria-pressed={form.color === color}
+                    onClick={() => setForm({ ...form, color })}
+                    className="h-8 w-8 rounded-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25 focus-visible:ring-offset-2"
+                    style={{ background: color, outline: form.color === color ? `2px solid ${color}` : undefined }}
+                  />
+                ))}
+              </div>
+            </fieldset>
+            <fieldset className="min-w-0">
+              <legend className="mb-2 text-sm font-medium text-muted">{messages.projectsPage.directMembers}</legend>
+              <div className="flex flex-wrap gap-2">
+                {users.map((user) => {
+                  const on = form.memberIds.includes(user.id);
+                  return (
+                    <button
+                      type="button"
+                      key={user.id}
+                      aria-pressed={on}
+                      onClick={() => toggle(user.id)}
+                      className={`rounded-full border px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25 ${on ? "border-brand bg-brand text-white" : "border-line"}`}
+                    >
+                      {user.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
             <div className="flex items-center gap-3">
               <Button type="submit">{t.save}</Button>
               <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
@@ -142,9 +151,9 @@ export default function TeamsPage() {
       {teams.length === 0 ? (
         <Empty>{t.none}</Empty>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           {teams.map((team) => (
-            <Card key={team.id}>
+            <Card key={team.id} className="transition-shadow hover:shadow-md">
               <div className="flex items-start justify-between">
                 <button
                   className="text-left"
@@ -168,8 +177,8 @@ export default function TeamsPage() {
                     {team.members.map((m) => m.user.name).join(", ") || t.noMembers} · {team._count?.projects ?? 0} {t.projects}
                   </p>
                 </button>
-                <button onClick={() => setDeleteTarget(team.id)} className="rounded-lg p-2 text-muted hover:text-danger">
-                  <Trash2 size={16} />
+                <button type="button" onClick={() => setDeleteTarget(team.id)} aria-label={`${messages.projectsPage.delete} ${team.name}`} className="rounded-lg p-2 text-muted hover:text-danger focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25">
+                  <Trash2 size={16} aria-hidden="true" />
                 </button>
               </div>
             </Card>

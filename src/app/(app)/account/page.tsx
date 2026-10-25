@@ -54,7 +54,7 @@ export default function AccountPage() {
   return (
     <div>
       <PageHeader title={t.accountTitle} subtitle={role === "OWNER" ? t.updateEmailPassword : t.updatePassword} />
-      <Card className="max-w-xl">
+      <Card className="max-w-xl shadow-sm">
         <form onSubmit={save} className="flex flex-col gap-4">
           {role === "OWNER" ? (
             <Field label={t.email}>

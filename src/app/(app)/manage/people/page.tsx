@@ -178,8 +178,8 @@ export default function PeoplePage() {
 
       {confirmation ? <Modal title={confirmation.title} onClose={() => setConfirmation(null)}><p>{confirmation.message}</p><ErrorText>{dialogError}</ErrorText><div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={() => setConfirmation(null)}>{messages.app.cancel}</Button><Button variant="danger" onClick={() => { const current = confirmation; setConfirmation(null); if (current.action === "reset") void updatePerson(current.person, { resetPassword: true }); else void remove(current.person); }}>{confirmation.action === "reset" ? t.forceReset : t.deletePerson}</Button></div></Modal> : null}
       {people.length === 0 ? <Empty>{t.none}</Empty> : (
-        <div className="overflow-hidden rounded-3xl border border-line bg-surface">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-sm">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="border-b border-line text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">{t.name}</th>

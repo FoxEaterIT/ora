@@ -52,7 +52,7 @@ export default function SetupPage() {
   const logo = appLogoForTheme("light");
   return (
     <main className="grid min-h-screen place-items-center px-4">
-      <form onSubmit={submit} className="w-full max-w-md rounded-[2rem] border border-line bg-surface p-8 shadow-[var(--shadow)]">
+      <form onSubmit={submit} className="w-full max-w-md rounded-3xl border border-line bg-surface p-6 shadow-[var(--shadow)] sm:p-8">
         <div className="mb-8 flex items-center gap-3">
           {logo ? <Image src={logo} alt="" width={160} height={48} unoptimized className="max-h-12 max-w-40 object-contain" /> : <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand text-xl font-semibold text-brand-ink">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
           <div>

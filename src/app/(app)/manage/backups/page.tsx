@@ -40,7 +40,7 @@ export default function BackupsPage() {
   return (
     <>
       <PageHeader title={t.title} subtitle={t.subtitle} />
-      <Card className="max-w-3xl">
+      <Card className="max-w-3xl shadow-sm">
         <p className="text-sm leading-6 text-ink">{t.description}</p>
         <p className="mt-3 text-sm leading-6 text-muted">{t.restoreNote}</p>
         <ErrorText>{error}</ErrorText>

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Clock3, DatabaseBackup, FolderKanban, LayoutDashboard, LogOut, Menu, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, X, Settings2, RefreshCw, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, Modal } from "@/components/ui";
@@ -14,6 +14,24 @@ import { useI18n } from "@/i18n/provider";
 export type SessionUser = { id: string; firstName: string; lastName: string; name: string; email: string; role: "OWNER" | "ADMIN" | "USER" };
 
 const THEMES = AVAILABLE_THEMES;
+type NavigationLink = { href: string; label: string; icon: typeof Timer };
+
+function ShellLink({ link, active }: { link: NavigationLink; active: boolean }) {
+  const Icon = link.icon;
+  return (
+    <Link
+      href={link.href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25",
+        active ? "bg-[var(--surface-sunken)] font-semibold text-ink" : "text-muted hover:bg-[var(--surface-sunken)] hover:text-ink",
+      )}
+    >
+      <Icon size={18} aria-hidden="true" />
+      {link.label}
+    </Link>
+  );
+}
 
 export function Shell({ user, children }: { user: SessionUser; children: React.ReactNode }) {
   const pathname = usePathname();
@@ -25,6 +43,8 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   const [theme, setTheme] = useState(EFFECTIVE_DEFAULT_THEME);
   const [lightTheme, setLightTheme] = useState(EFFECTIVE_DEFAULT_THEME);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useRef<HTMLElement>(null);
+  const drawerTriggerRef = useRef<HTMLButtonElement>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
   const [update, setUpdate] = useState<{ currentVersion: string; latestVersion: string; releaseUrl: string } | null>(null);
@@ -36,6 +56,27 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   const [updating, setUpdating] = useState(false);
   const [confirmUpdate, setConfirmUpdate] = useState(false);
   const brandLogo = appLogoForTheme(theme);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const panel = drawerRef.current;
+    const trigger = drawerTriggerRef.current;
+    const focusable = () => panel ? [...panel.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), [tabindex]:not([tabindex='-1'])")].filter((item) => item.offsetParent !== null) : [];
+    focusable()[0]?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.stopPropagation(); setDrawerOpen(false); }
+      if (event.key !== "Tab" || !panel) return;
+      const items = focusable();
+      if (!items.length) { event.preventDefault(); panel.focus(); return; }
+      if (event.shiftKey && (document.activeElement === items[0] || !panel.contains(document.activeElement))) { event.preventDefault(); items[items.length - 1].focus(); }
+      else if (!event.shiftKey && (document.activeElement === items[items.length - 1] || !panel.contains(document.activeElement))) { event.preventDefault(); items[0].focus(); }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      if (trigger?.isConnected) trigger.focus();
+    };
+  }, [drawerOpen]);
 
   useEffect(() => {
     const allowedThemes: string[] = THEMES.map((item) => item.value);
@@ -165,19 +206,31 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   ];
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-30 h-16 border-b border-line bg-surface/95 shadow-sm backdrop-blur">
-        <div className="mx-auto grid h-full max-w-[1400px] grid-cols-3 items-center px-4 sm:px-6">
-          <div className="flex items-center">
+    <div className="min-h-screen lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
+      <aside className="sticky top-0 hidden h-screen flex-col border-r border-line bg-surface p-4 lg:flex">
+        <div className="mb-6 flex min-w-0 items-center gap-3 px-2">
+          {brandLogo ? <Image src={brandLogo} alt="" width={144} height={40} unoptimized className="max-h-10 max-w-36 object-contain" /> : <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand text-lg font-bold text-brand-ink">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
+          <div className="min-w-0">
+            <p className="truncate text-lg font-semibold tracking-tight text-ink">{APP_NAME}</p>
+            <p className="truncate text-xs text-muted">{APP_TAGLINE}</p>
+          </div>
+        </div>
+        <nav aria-label={messages.navigation} className="flex flex-col gap-1">{links.map((link) => <ShellLink key={link.href} link={link} active={pathname === link.href} />)}</nav>
+      </aside>
+      <div className="min-w-0">
+      <header className="sticky top-0 z-30 h-16 border-b border-line bg-surface/95 shadow-sm">
+        <div className="mx-auto flex h-full max-w-[1400px] items-center justify-between px-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
             <button
+              ref={drawerTriggerRef}
               onClick={() => setDrawerOpen(true)}
               aria-label={messages.openNavigation}
-              className="grid h-10 w-10 place-items-center rounded-xl text-muted transition hover:bg-bg hover:text-ink"
+              className="grid h-10 w-10 place-items-center rounded-lg text-muted transition hover:bg-[var(--surface-sunken)] hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25 lg:hidden"
             >
               <Menu size={21} />
             </button>
+            <p className="truncate text-sm font-semibold text-ink lg:hidden">{APP_NAME}</p>
           </div>
-          <div className="justify-self-center" aria-hidden="true" />
           <div className="flex items-center justify-end gap-1">
             {theme !== "dark" && (
               <div className="relative">
@@ -186,18 +239,18 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
                   aria-label={messages.theme}
                   aria-expanded={themesOpen}
                   title={`${messages.themeLabel}: ${THEMES.find((item) => item.value === lightTheme)?.label || THEMES[0].label}`}
-                  className="grid h-10 w-10 place-items-center rounded-xl text-muted transition hover:bg-bg hover:text-ink"
+                  className="grid h-10 w-10 place-items-center rounded-lg text-muted transition hover:bg-[var(--surface-sunken)] hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25"
                 >
                   <Palette size={19} />
                 </button>
                 {themesOpen && (
-                  <div className="absolute right-0 top-12 z-50 w-52 rounded-2xl border border-line bg-surface p-2 shadow-[var(--shadow)]">
+                  <div className="absolute right-0 top-12 z-50 w-52 rounded-xl border border-line bg-surface p-2 shadow-[var(--shadow)]">
                     <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-wider text-muted">{messages.lightTheme}</p>
                     {THEMES.map((item) => (
                       <button
                         key={item.value}
                         onClick={() => selectLightTheme(item.value)}
-                        className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-bg", lightTheme === item.value ? "font-semibold text-ink" : "text-muted")}
+                        className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-[var(--surface-sunken)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25", lightTheme === item.value ? "font-semibold text-ink" : "text-muted")}
                       >
                         <span className="h-3.5 w-3.5 rounded-full ring-2 ring-surface ring-offset-1 ring-offset-surface" style={{ backgroundColor: item.color }} />
                         {item.label}
@@ -212,12 +265,12 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
               onClick={toggleTheme}
               aria-label={theme === "dark" ? messages.lightMode : messages.darkMode}
               title={theme === "dark" ? messages.lightMode : messages.darkMode}
-              className="grid h-10 w-10 place-items-center rounded-xl text-muted transition hover:bg-bg hover:text-ink"
+              className="grid h-10 w-10 place-items-center rounded-lg text-muted transition hover:bg-[var(--surface-sunken)] hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25"
             >
               {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
             </button>
             <label className="sr-only" htmlFor="ora-language">{messages.language}</label>
-            <select id="ora-language" aria-label={messages.language} value={locale} onChange={(event) => setLocale(event.target.value as typeof locale)} className="max-w-20 rounded-lg border border-line bg-surface px-1 py-2 text-xs text-ink sm:max-w-28 sm:px-2">
+            <select id="ora-language" aria-label={messages.language} value={locale} onChange={(event) => setLocale(event.target.value as typeof locale)} className="max-w-20 rounded-lg border border-line bg-surface px-1 py-2 text-xs text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25 sm:max-w-28 sm:px-2">
               {locales.map((item) => <option key={item} value={item}>{messages.languages[item]}</option>)}
             </select>
             <div className="relative">
@@ -225,21 +278,21 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
                 onClick={() => { setAccountOpen((open) => !open); setThemesOpen(false); }}
                 aria-label={messages.accountMenu}
                 aria-expanded={accountOpen}
-                className={cn("grid h-10 w-10 place-items-center rounded-xl transition", accountOpen ? "bg-bg text-ink" : "text-muted hover:bg-bg hover:text-ink")}
+                className={cn("grid h-10 w-10 place-items-center rounded-lg transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25", accountOpen ? "bg-[var(--surface-sunken)] text-ink" : "text-muted hover:bg-[var(--surface-sunken)] hover:text-ink")}
               >
                 <UserRound size={19} />
               </button>
               {accountOpen && (
-                <div className="absolute right-0 top-12 z-50 w-64 rounded-2xl border border-line bg-surface p-2 shadow-[var(--shadow)]">
+                <div className="absolute right-0 top-12 z-50 w-64 rounded-xl border border-line bg-surface p-2 shadow-[var(--shadow)]">
                   <div className="border-b border-line px-3 py-3">
                     <p className="truncate text-sm font-semibold text-ink">{user.name}</p>
                     <p className="mt-0.5 truncate text-xs text-muted">{user.email}</p>
-                    <span className="mt-2 inline-flex rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-muted">{messages.role[user.role]}</span>
+                    <span className="mt-2 inline-flex rounded-full bg-[var(--surface-sunken)] px-2.5 py-1 text-xs font-medium text-muted">{messages.role[user.role]}</span>
                   </div>
-                  <Link href="/account" className="mt-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-muted transition hover:bg-bg hover:text-ink">
+                  <Link href="/account" className="mt-1 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-muted transition hover:bg-[var(--surface-sunken)] hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25">
                     <Settings2 size={17} /> {messages.myAccount}
                   </Link>
-                  <button onClick={logout} className="mt-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-danger transition hover:bg-bg">
+                  <button onClick={logout} className="mt-1 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-danger transition hover:bg-[var(--surface-sunken)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25">
                     <LogOut size={17} />
                     {messages.signOut}
                   </button>
@@ -252,44 +305,26 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
 
       {drawerOpen && (
         <div className="fixed inset-0 z-40">
-          <button className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setDrawerOpen(false)} aria-label={messages.closeNavigation} />
-          <aside className="absolute inset-y-0 left-0 flex w-[min(19rem,85vw)] flex-col border-r border-line bg-surface p-5 shadow-2xl">
+          <button className="absolute inset-0 bg-ink/40" onClick={() => setDrawerOpen(false)} aria-label={messages.closeNavigation} />
+          <aside ref={drawerRef} role="dialog" aria-modal="true" aria-label={messages.navigation} tabIndex={-1} className="absolute inset-y-0 left-0 flex w-[min(19rem,85vw)] flex-col border-r border-line bg-surface p-5 shadow-[var(--shadow)] outline-none">
             <div className="mb-8 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {brandLogo ? <Image src={brandLogo} alt="" width={144} height={40} unoptimized className="max-h-10 max-w-36 object-contain" /> : <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand text-lg font-bold text-brand-ink">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
+                {brandLogo ? <Image src={brandLogo} alt="" width={144} height={40} unoptimized className="max-h-10 max-w-36 object-contain" /> : <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand text-lg font-bold text-brand-ink">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
                 <div>
                   <p className="text-lg font-semibold tracking-tight text-ink">{APP_NAME}</p>
                   <p className="text-xs text-muted">{APP_TAGLINE}</p>
                 </div>
               </div>
-              <button onClick={() => setDrawerOpen(false)} aria-label={messages.closeNavigation} className="grid h-9 w-9 place-items-center rounded-xl text-muted hover:bg-bg hover:text-ink"><X size={19} /></button>
+              <button type="button" onClick={() => setDrawerOpen(false)} aria-label={messages.closeNavigation} className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-[var(--surface-sunken)] hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25"><X size={19} aria-hidden="true" /></button>
             </div>
             <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted">{messages.navigation}</p>
-            <nav className="flex flex-col gap-1">
-              {links.map((link) => {
-                const active = pathname === link.href;
-                const Icon = link.icon;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition",
-                      active ? "bg-brand text-brand-ink shadow-[var(--shadow)]" : "text-muted hover:bg-bg hover:text-ink",
-                    )}
-                  >
-                    <Icon size={18} />
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </nav>
+            <nav aria-label={messages.navigation} className="flex flex-col gap-1">{links.map((link) => <ShellLink key={link.href} link={link} active={pathname === link.href} />)}</nav>
           </aside>
         </div>
       )}
 
       {desktopRelease && !desktopMode && (
-        <div role="status" className="mx-auto mt-4 max-w-[1400px] rounded-xl border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-ink sm:mx-6 lg:mx-auto">
+        <div role="status" className="mx-auto mt-4 max-w-[1400px] rounded-lg border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-ink sm:mx-6 lg:mx-auto">
           <p className="font-semibold">{messages.desktopReleaseAvailable.replace("{version}", desktopRelease.version)}</p>
           <button type="button" onClick={() => setShowDesktopRelease(true)} className="font-semibold text-brand underline underline-offset-2">{messages.viewRelease}</button>
           <ul className="mt-2 grid gap-2">
@@ -298,20 +333,21 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
         </div>
       )}
       {update && (
-        <div role="status" className="mx-auto mt-4 flex max-w-[1400px] flex-wrap items-center justify-between gap-3 rounded-xl border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-ink sm:mx-6 lg:mx-auto">
+        <div role="status" className="mx-auto mt-4 flex max-w-[1400px] flex-wrap items-center justify-between gap-3 rounded-lg border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-ink sm:mx-6 lg:mx-auto">
           <p>{messages.updateAvailable.replace("{version}", update.latestVersion).replace("{current}", update.currentVersion)}</p>
           <div className="flex items-center gap-4">
             <a href={update.releaseUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand underline underline-offset-2">{messages.viewRelease}</a>
-            {updaterAvailable && (!updateStatus || ["idle", "succeeded", "failed"].includes(updateStatus.phase)) && <button onClick={() => setConfirmUpdate(true)} className="inline-flex items-center gap-2 rounded-lg bg-brand px-3 py-2 font-semibold text-brand-ink"><RefreshCw size={15} />{messages.installUpdate}</button>}
+            {updaterAvailable && (!updateStatus || ["idle", "succeeded", "failed"].includes(updateStatus.phase)) && <button onClick={() => setConfirmUpdate(true)} className="inline-flex items-center gap-2 rounded-lg bg-brand px-3 py-2 font-semibold text-brand-ink hover:bg-[var(--brand-strong)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25"><RefreshCw size={15} />{messages.installUpdate}</button>}
           </div>
-          {updateStatus && !["idle", "succeeded"].includes(updateStatus.phase) && <p className="basis-full">{messages.updatePhase}: {updateStatus.message || updateStatus.phase}{updateError ? ` — ${messages.updateServiceUnavailable}` : ""}</p>}
-          {updateStatus?.phase === "succeeded" && <p className="basis-full">{messages.updateDone}</p>}
+          {updateStatus && !["idle", "succeeded"].includes(updateStatus.phase) && <p role="status" aria-atomic="true" className="basis-full">{messages.updatePhase}: {updateStatus.message || updateStatus.phase}{updateError ? ` — ${messages.updateServiceUnavailable}` : ""}</p>}
+          {updateStatus?.phase === "succeeded" && <p role="status" aria-atomic="true" className="basis-full">{messages.updateDone}</p>}
           {!updaterAvailable && <p className="basis-full text-muted">{messages.updaterUnavailable}</p>}
         </div>
       )}
       {showDesktopRelease && desktopRelease ? <Modal title={messages.releaseDetails} onClose={() => setShowDesktopRelease(false)}><div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm">{desktopRelease.body || messages.desktopReleaseAvailable.replace("{version}", desktopRelease.version)}</div><div className="mt-5 flex justify-end"><Button onClick={() => setShowDesktopRelease(false)}>{messages.app.cancel}</Button></div></Modal> : null}
       {confirmUpdate ? <Modal title={messages.installUpdate} onClose={() => setConfirmUpdate(false)}><p>{messages.updateConfirm}</p><div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={() => setConfirmUpdate(false)}>{messages.app.cancel}</Button><Button onClick={() => void startUpdate()}>{messages.installUpdate}</Button></div></Modal> : null}
       <main className="mx-auto min-w-0 max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</main>
+      </div>
     </div>
   );
 }

@@ -18,11 +18,11 @@ Ora helps small teams track project hours, manage people and teams, and export r
 
 | Area | What you can do |
 |---|---|
-| Time tracking | Track time on assigned projects. The web Timer and Tauri desktop panel share the Timer React view through separate API adapters. The web My hours page and desktop panel also share a view; desktop is currently read-only, while web supports manual entry creation, editing, and deletion. The desktop API remains constrained to its allowlisted routes, and project deletion is unavailable in desktop mode. |
+| Time tracking | Track time on assigned projects. The web Timer and Tauri desktop panel share the Timer React view through separate API adapters. The web My hours page and desktop panel also share a view; desktop is currently read-only, while web supports manual entry creation, editing, and deletion. The desktop API remains constrained to its allowlisted routes, and project deletion is unavailable in desktop mode. The responsive web tables scroll horizontally on narrow screens. |
 | Projects | Create projects and assign people. Owners and admins also manage teams, archive projects, and delete projects without time history. |
 | Reports | Filter report data and export CSV or Excel files. Ora Desktop does not support report exports. |
 | Backup | The Owner can download a complete Excel archive of projects, people, teams, and related time entries. |
-| Preferences | Use English, Italian, or Spanish and choose from light and dark themes. Confirmation and error prompts appear in Ora's themed dialogs. |
+| Preferences | Use English, Italian, or Spanish and choose from light and dark themes. Theme text and status colors are tuned for WCAG AA contrast across the web and standalone desktop palettes. Ora provides visible keyboard focus, keyboard-operable dialogs/navigation, and respects the operating system's reduced-motion preference. Confirmation and error prompts appear in Ora's themed dialogs. |
 
 > **Data protection:** Deactivating a person preserves their time history. Excel backups contain sensitive information and should be stored securely.
 

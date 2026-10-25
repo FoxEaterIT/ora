@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Pause, Play, Trash2 } from "lucide-react";
+import { Pencil, Pause, Play, Trash2 } from "lucide-react";
 import { Button, Card, Empty, ErrorText, Field, Input, Modal, PageHeader, Select } from "@/components/ui";
 import { entryDuration, formatDuration, toLocalInput } from "@/lib/utils";
 import { useI18n } from "@/i18n/provider";
@@ -30,6 +30,8 @@ export default function TimerView({ api = webApi }: { api?: TimerApi; desktop?: 
   const [error, setError] = useState("");
   const [now, setNow] = useState(Date.now());
   const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editingRunning, setEditingRunning] = useState(false);
 
   const load = useCallback(async () => {
     const [p, e] = await Promise.all([
@@ -110,7 +112,7 @@ export default function TimerView({ api = webApi }: { api?: TimerApi; desktop?: 
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-muted">{t.inProgress}</p>
-              <p className="mt-1 font-mono text-5xl font-semibold tracking-tight">
+              <p className="ora-time mt-1 text-5xl font-semibold tracking-tight">
                 {formatDuration(now - new Date(activeTimes.start).getTime())}
               </p>
               <p className="mt-2 flex items-center gap-2 text-sm">
@@ -122,6 +124,8 @@ export default function TimerView({ api = webApi }: { api?: TimerApi; desktop?: 
             <Button onClick={stop} variant="danger" className="h-14 px-6 text-base">
               <Pause size={18} /> {t.stop}
             </Button>
+            <Button type="button" variant="ghost" className="ml-auto" aria-expanded={editingRunning} onClick={() => setEditingRunning((value) => !value)}><Pencil size={15} />{t.editEntry}</Button>
+            {editingRunning ? <>
             <div className="flex w-full min-w-0 flex-col gap-4 md:flex-row md:justify-evenly">
               <Field className="w-full min-w-0 md:w-[calc(50%-0.5rem)]" label={t.startTime}>
                 <Input className="block w-full min-w-0 max-w-full" type="datetime-local" required value={activeTimes.start} onChange={(event) => setRunningTimes({ ...activeTimes, start: event.target.value })} />
@@ -134,6 +138,7 @@ export default function TimerView({ api = webApi }: { api?: TimerApi; desktop?: 
               <ErrorText>{error}</ErrorText>
               <Button type="button" className="h-[46px]" onClick={() => updateEntry(running, activeTimes.start, activeTimes.end).then(() => setRunningTimes({ start: "", end: "" }))} disabled={!activeTimes.start}>{t.save}</Button>
             </div>
+            </> : null}
           </div>
         ) : (
           <form onSubmit={start} className="grid gap-4 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
@@ -176,6 +181,9 @@ export default function TimerView({ api = webApi }: { api?: TimerApi; desktop?: 
                 </p>
               </div>
               <p className="font-mono text-sm">{formatDuration(entryDuration(entry.start, entry.end))}</p>
+              <Button type="button" variant="ghost" className="justify-self-end" aria-expanded={editingEntryId === entry.id} onClick={() => setEditingEntryId((id) => id === entry.id ? null : entry.id)}><Pencil size={15} />{t.editEntry}</Button>
+              <Button type="button" variant="ghost" aria-label={t.deleteEntry} title={t.deleteEntry} className="justify-self-end px-3 text-danger" onClick={() => deleteEntry(entry)}><Trash2 size={16} /></Button>
+              {editingEntryId === entry.id ? <>
               <div className="flex w-full min-w-0 flex-col gap-4 md:flex-row md:justify-evenly">
                 <Field className="w-full min-w-0 md:w-[calc(50%-0.5rem)]" label={t.startTime}>
                   <Input className="block w-full min-w-0 max-w-full" type="datetime-local" required value={timesFor(entry).start} onChange={(event) => setEntryTimes({ ...entryTimes, [entry.id]: { ...timesFor(entry), start: event.target.value } })} />
@@ -186,10 +194,8 @@ export default function TimerView({ api = webApi }: { api?: TimerApi; desktop?: 
               </div>
               <div className="flex items-center gap-2 sm:col-span-2">
                 <Button type="button" className="h-[46px]" onClick={() => updateEntry(entry, timesFor(entry).start, timesFor(entry).end)} disabled={!timesFor(entry).start}>{t.save}</Button>
-                <Button type="button" variant="ghost" aria-label={t.deleteEntry} title={t.deleteEntry} className="h-[46px] px-3 text-danger" onClick={() => deleteEntry(entry)}>
-                  <Trash2 size={16} />
-                </Button>
               </div>
+              </> : null}
             </div>
           ))}
         </div>

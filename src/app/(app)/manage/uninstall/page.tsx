@@ -63,7 +63,7 @@ export default function UninstallPage() {
 
   return <>
     <PageHeader title={t.title} subtitle={t.subtitle} />
-    <Card className="max-w-3xl">
+    <Card className="max-w-3xl border-danger/30 shadow-sm">
       <div className="flex items-start gap-3"><AlertTriangle className="mt-1 shrink-0 text-danger" size={20} /><p className="text-sm leading-6">{t.warning}</p></div>
       <label className="mt-5 flex items-start gap-3 text-sm"><Checkbox checked={keepData} onChange={(event) => setKeepData(event.target.checked)} /><span>{t.keepData}</span></label>
       <label className="mt-3 flex items-start gap-3 text-sm"><Checkbox checked={createInventory} onChange={(event) => setCreateInventory(event.target.checked)} /><span>{t.createInventory}</span></label>
