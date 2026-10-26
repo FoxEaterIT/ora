@@ -62,3 +62,7 @@ next-env.d.ts
 
 # Generated code knowledge graph
 /graphify-out/
+
+#Hallmark 
+design.md 
+.hallmark
