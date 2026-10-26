@@ -1,9 +1,10 @@
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma/client";
 import { canAssignProjectMembers, canCreateProject, canDeleteProject, canManageProjectMembers } from "../src/lib/project-policy";
 
 test("project API authorization policy allows all roles to create and assign multiple members, while limiting deletion", () => {
@@ -22,7 +23,7 @@ test("project API authorization policy allows all roles to create and assign mul
 
 test("SQLite supports multiple project members and restricts deleting projects with entries", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "ora-project-test-"));
-  const prisma = new PrismaClient({ datasourceUrl: `file:${path.join(directory, "test.db")}` });
+  const prisma = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${path.join(directory, "test.db")}` }) });
   try {
     await prisma.$executeRawUnsafe("PRAGMA foreign_keys = ON");
     await prisma.$executeRawUnsafe("CREATE TABLE Project (id TEXT PRIMARY KEY)");

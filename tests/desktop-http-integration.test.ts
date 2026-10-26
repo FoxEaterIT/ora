@@ -1,3 +1,4 @@
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import assert from "node:assert/strict";
 import { spawn, execFileSync, type ChildProcess } from "node:child_process";
 import { mkdtemp, rm, cp, mkdir, readFile, writeFile } from "node:fs/promises";
@@ -5,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { test } from "node:test";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma/client";
 import bcrypt from "bcryptjs";
 
 const root = process.cwd();
@@ -31,10 +32,11 @@ async function stopServer(child: ChildProcess) {
   if (child.exitCode !== null) return;
   if (process.platform === "win32" && child.pid) {
     try { execFileSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" }); } catch { /* Process may have exited. */ }
+    try { execFileSync("taskkill", ["/im", "node.exe", "/fi", "WINDOWTITLE eq Ora integration server", "/t", "/f"], { stdio: "ignore" }); } catch { /* Descendant processes may have exited. */ }
   } else {
     child.kill("SIGTERM");
   }
-  await Promise.race([new Promise<void>((resolve) => child.once("exit", () => resolve())), delay(10_000)]);
+  await Promise.race([new Promise<void>((resolve) => child.once("exit", () => resolve())), delay(30_000)]);
 }
 
 test("desktop HTTP auth survives a Next process restart and enforces the contract", { timeout: 240_000 }, async () => {
@@ -52,14 +54,14 @@ test("desktop HTTP auth survives a Next process restart and enforces the contrac
 
   try {
     const originalPrismaSchema = await readFile(path.join(root, "prisma", "schema.prisma"), "utf8");
-    await writeFile(path.join(prismaDir, "schema.prisma"), originalPrismaSchema.replace('url      = "file:./ORA.db"', `url      = "${databaseUrl}"`));
+    await writeFile(path.join(prismaDir, "schema.prisma"), originalPrismaSchema);
     execFileSync(process.execPath, [prismaCli, "migrate", "deploy", "--schema", path.join(prismaDir, "schema.prisma")], {
       cwd: root,
-      env: { ...process.env },
+      env: { ...process.env, ORA_TEST_DATABASE_URL: databaseUrl },
       stdio: "pipe",
     });
 
-    const seed = new PrismaClient({ datasourceUrl: databaseUrl });
+    const seed = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: databaseUrl, timestampFormat: "unixepoch-ms" }) });
     const passwordHash = await bcrypt.hash("test-password-123", 10);
     const owner = await seed.user.create({ data: { id: "http-owner", email: "owner-http@example.test", firstName: "Test", lastName: "Owner", passwordHash, role: "OWNER" } });
     const admin = await seed.user.create({ data: { id: "http-admin", email: "admin-http@example.test", firstName: "Test", lastName: "Admin", passwordHash, role: "ADMIN" } });
@@ -84,7 +86,9 @@ test("desktop HTTP auth survives a Next process restart and enforces the contrac
     };
 
     server = launch();
-    await waitForServer(baseUrl, server!);
+    await waitForServer(baseUrl, server!).catch((error) => {
+      throw new Error(`${error instanceof Error ? error.message : String(error)}\n${serverOutput.slice(-40).join("")}`);
+    });
     const bad = await login(user.email, "wrong-password");
     assert.equal(bad.response.status, 401);
     assert.match(bad.body.error ?? "", /incorrect/i);
@@ -191,7 +195,9 @@ test("desktop HTTP auth survives a Next process restart and enforces the contrac
     server = undefined;
     await delay(1000);
     server = launch();
-    await waitForServer(baseUrl, server!);
+    await waitForServer(baseUrl, server!).catch((error) => {
+      throw new Error(`${error instanceof Error ? error.message : String(error)}\n${serverOutput.slice(-40).join("")}`);
+    });
     assert.equal((await request("/api/desktop/config", token)).status, 200, "session should survive server restart");
 
     const logout = await request("/api/desktop/logout", token, { method: "POST" });

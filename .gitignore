@@ -63,6 +63,9 @@ next-env.d.ts
 # Generated code knowledge graph
 /graphify-out/
 
+# Local release changelog working notes (not published as a repository file)
+/.release-changelog.md
+
 #Hallmark 
 design.md 
 .hallmark

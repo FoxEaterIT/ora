@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 /** Creates a short-lived handoff only from an already authenticated browser session. */
 export function DesktopHandoff() {
   const [status, setStatus] = useState("");
-  const [isDesktop, setIsDesktop] = useState(false);
-  useEffect(() => setIsDesktop(new URLSearchParams(location.search).has("desktop")), []);
+  const isDesktop = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("desktop");
   if (!isDesktop) return null;
 
   async function createHandoff() {

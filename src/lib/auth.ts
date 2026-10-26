@@ -3,7 +3,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
-import type { Role, User } from "@prisma/client";
+import type { Role, User } from "@/generated/prisma/client";
 import { fullName } from "./users";
 import { AUTH_SECRET, IS_PRODUCTION, PASSWORD_HASH_ROUNDS, SESSION_COOKIE_NAME, SESSION_DURATION_SECONDS } from "./server-config";
 

@@ -12,8 +12,12 @@ export function I18nProvider({ children, initialLocale }: { children: React.Reac
     const saved = normalizeLocale(localStorage.getItem("ora-locale"));
     const browser = typeof navigator === "undefined" ? undefined : navigator.languages.map(normalizeLocale).find(Boolean) ?? normalizeLocale(navigator.language);
     const initial = initialLocale ?? saved ?? browser ?? DEFAULT_LOCALE;
-    setLocaleState(initial);
     persistLocale(initial);
+    // Initial locale selection is synchronized from browser preferences after hydration.
+    let active = true;
+    const timer = window.setTimeout(() => { if (active) setLocaleState(initial); }, 0);
+    persistLocale(initial);
+    return () => { active = false; window.clearTimeout(timer); };
   }, [initialLocale]);
   const setLocale = (next: Locale) => {
     setLocaleState(next);

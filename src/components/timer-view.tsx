@@ -28,7 +28,7 @@ export default function TimerView({ api = webApi }: { api?: TimerApi; desktop?: 
   const [runningTimes, setRunningTimes] = useState({ start: "", end: "" });
   const [entryTimes, setEntryTimes] = useState<Record<string, { start: string; end: string }>>({});
   const [error, setError] = useState("");
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [editingRunning, setEditingRunning] = useState(false);
@@ -44,9 +44,10 @@ export default function TimerView({ api = webApi }: { api?: TimerApi; desktop?: 
   }, [api]);
 
   useEffect(() => {
-    void load().catch((cause) => setError(cause.message));
+    let active = true;
+    const initialLoad = window.setTimeout(() => { if (active) void load().catch((cause) => setError(cause.message)); }, 0);
     const tick = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(tick);
+    return () => { active = false; window.clearTimeout(initialLoad); clearInterval(tick); };
   }, [load]);
 
   const running = entries.find((entry) => !entry.end) ?? null;

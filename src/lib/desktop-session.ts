@@ -1,10 +1,11 @@
 import { createHash, randomBytes } from "crypto";
-import type { Prisma, User } from "@prisma/client";
+import type { Prisma, User } from "@/generated/prisma/client";
+import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "./prisma";
 
 export const DESKTOP_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-export type SessionDb = Prisma.TransactionClient | typeof prisma;
+export type SessionDb = Prisma.TransactionClient | PrismaClient;
 
 export function hashDesktopToken(token: string) {
   return createHash("sha256").update(token).digest("hex");

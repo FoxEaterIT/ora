@@ -44,7 +44,7 @@ export default function ProjectsView({ api, desktop = false }: { api: ProjectApi
     })));
     if (teamData && userData) { setTeams(teamData.teams ?? []); setUsers(userData.users ?? []); }
   }, [api, desktop]);
-  useEffect(() => { void load().catch(e => setError(e.message)); }, [load]);
+  useEffect(() => { let active = true; const timer = window.setTimeout(() => { if (active) void load().catch(e => setError(e.message)); }, 0); return () => { active = false; window.clearTimeout(timer); }; }, [load]);
   function beginCreate() { setEditing(null); setForm({ name: "", description: "", color: COLORS[0], teamId: "", memberIds: [] }); setOpen(true); setError(""); }
   function beginEdit(project: Project) { setEditing(project.id); setForm({ name: project.name, description: project.description, color: project.color, teamId: project.teamId ?? "", memberIds: project.members.map(m => m.user.id) }); setOpen(true); setError(""); }
   function toggleMember(id: string) { setForm(current => ({ ...current, memberIds: current.memberIds.includes(id) ? current.memberIds.filter(x => x !== id) : [...current.memberIds, id] })); }

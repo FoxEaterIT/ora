@@ -1,9 +1,10 @@
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma/client";
 import { desktopLoginKey, hashDesktopToken } from "../src/lib/desktop-session";
 import { clearDesktopLoginFailures, desktopLoginDelay, recordDesktopLoginFailure } from "../src/lib/desktop-login-throttle";
 import { desktopRouteDecision } from "../src/lib/desktop-route-policy";
@@ -34,7 +35,7 @@ test("desktop endpoint policy allows only contract paths and methods", () => {
 
 test("persistent desktop login failure records use increasing bounded delays and clear on success", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "ora-desktop-throttle-test-"));
-  const db = new PrismaClient({ datasourceUrl: `file:${path.join(directory, "test.db")}` });
+  const db = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${path.join(directory, "test.db")}` }) });
   try {
     await db.$executeRawUnsafe('CREATE TABLE "DesktopLoginAttempt" ("key" TEXT PRIMARY KEY, "failures" INTEGER NOT NULL DEFAULT 0, "blockedUntil" DATETIME NOT NULL, "updatedAt" DATETIME NOT NULL)');
     const ip = "192.0.2.1", email = "person@example.test";

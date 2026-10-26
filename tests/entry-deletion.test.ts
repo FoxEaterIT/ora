@@ -3,7 +3,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { PrismaClient } from "@prisma/client";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaClient } from "../src/generated/prisma/client";
 import { canDeleteEntry } from "../src/lib/entry-policy";
 
 test("only the entry owner can delete, including when the actor is a manager", () => {
@@ -16,7 +17,7 @@ test("only the entry owner can delete, including when the actor is a manager", (
 
 test("deleting an owned time entry removes it from subsequent reads", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "ora-entry-delete-test-"));
-  const prisma = new PrismaClient({ datasourceUrl: `file:${path.join(directory, "test.db")}` });
+  const prisma = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${path.join(directory, "test.db")}` }) });
   try {
     await prisma.$executeRawUnsafe("CREATE TABLE User (id TEXT PRIMARY KEY)");
     await prisma.$executeRawUnsafe("CREATE TABLE Project (id TEXT PRIMARY KEY)");

@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import type { User } from "@prisma/client";
+import type { User } from "@/generated/prisma/client";
 import { isManager } from "./auth";
 
 /** Projects the user can record time against. */

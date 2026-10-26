@@ -73,8 +73,10 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
     const savedLight = allowedThemes.includes(storedLightTheme ?? "")
       ? storedLightTheme!
       : saved === "dark" ? EFFECTIVE_DEFAULT_THEME : saved;
-    setLightTheme(savedLight);
-    setTheme(saved);
+    window.setTimeout(() => {
+      setLightTheme(savedLight);
+      setTheme(saved);
+    }, 0);
     document.documentElement.dataset.theme = saved;
     localStorage.setItem("ora-theme", saved);
     localStorage.setItem("ora-light-theme", savedLight);
@@ -149,9 +151,12 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   }
 
   useEffect(() => {
-    setAccountOpen(false);
-    setThemesOpen(false);
-    setNavigationOpen(false);
+    const timer = window.setTimeout(() => {
+      setAccountOpen(false);
+      setThemesOpen(false);
+      setNavigationOpen(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [pathname]);
 
   useEffect(() => {
@@ -170,7 +175,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   function toggleTheme() {
     const next = theme === "dark" ? lightTheme : "dark";
     setTheme(next);
-    document.documentElement.dataset.theme = next;
+    window.setTimeout(() => { document.documentElement.dataset.theme = next; }, 0);
     localStorage.setItem("ora-theme", next);
     if (next !== "dark") localStorage.setItem("ora-light-theme", next);
     setThemesOpen(false);
@@ -179,7 +184,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   function selectLightTheme(next: string) {
     setTheme(next);
     setLightTheme(next);
-    document.documentElement.dataset.theme = next;
+    window.setTimeout(() => { document.documentElement.dataset.theme = next; }, 0);
     localStorage.setItem("ora-theme", next);
     localStorage.setItem("ora-light-theme", next);
     setThemesOpen(false);

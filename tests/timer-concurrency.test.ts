@@ -1,15 +1,16 @@
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma/client";
 
 const migrationPath = path.join(process.cwd(), "prisma/migrations/20261015120000_one_running_timer_per_user/migration.sql");
 
 test("SQLite allows only one open time entry per user", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "ora-timer-test-"));
-  const prisma = new PrismaClient({ datasourceUrl: `file:${path.join(directory, "test.db")}` });
+  const prisma = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${path.join(directory, "test.db")}` }) });
 
   try {
     await prisma.$executeRawUnsafe(`CREATE TABLE TimeEntry (id TEXT PRIMARY KEY, userId TEXT NOT NULL, end DATETIME)`);

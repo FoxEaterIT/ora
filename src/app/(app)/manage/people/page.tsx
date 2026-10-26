@@ -51,7 +51,9 @@ export default function PeoplePage() {
   }, [showDeactivated]);
 
   useEffect(() => {
-    void load();
+    let active = true;
+    const timer = window.setTimeout(() => { if (active) void load(); }, 0);
+    return () => { active = false; window.clearTimeout(timer); };
   }, [load]);
 
   const owner = me?.role === "OWNER";

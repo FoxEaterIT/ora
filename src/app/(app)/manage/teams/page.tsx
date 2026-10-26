@@ -36,7 +36,9 @@ export default function TeamsPage() {
   }
 
   useEffect(() => {
-    load();
+    let active = true;
+    const timer = window.setTimeout(() => { if (active) void load(); }, 0);
+    return () => { active = false; window.clearTimeout(timer); };
   }, []);
 
   function toggle(id: string) {

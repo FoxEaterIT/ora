@@ -1,9 +1,10 @@
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma/client";
 import {
   DESKTOP_SESSION_TTL_MS,
   getDesktopUser,
@@ -16,7 +17,7 @@ import {
 async function setupDb() {
   const directory = await mkdtemp(path.join(os.tmpdir(), "ora-desktop-session-test-"));
   const dbPath = path.join(directory, "test.db");
-  const db = new PrismaClient({ datasourceUrl: `file:${dbPath}` });
+  const db = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${dbPath}` }) });
   await db.$executeRawUnsafe('CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "email" TEXT NOT NULL UNIQUE, "firstName" TEXT NOT NULL DEFAULT \'\', "lastName" TEXT NOT NULL DEFAULT \'\', "passwordHash" TEXT, "deactivatedAt" DATETIME, "role" TEXT NOT NULL DEFAULT \'USER\', "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)');
   await db.$executeRawUnsafe('CREATE TABLE "DesktopSession" ("id" TEXT PRIMARY KEY, "userId" TEXT NOT NULL REFERENCES "User"("id"), "tokenHash" TEXT NOT NULL UNIQUE, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "expiresAt" DATETIME NOT NULL, "revokedAt" DATETIME, "revokeReason" TEXT)');
   await db.$executeRawUnsafe('CREATE UNIQUE INDEX "DesktopSession_one_active_per_user" ON "DesktopSession"("userId") WHERE "revokedAt" IS NULL');
@@ -28,7 +29,7 @@ test("desktop sessions persist across Prisma clients and server-process restarts
   const { directory, dbPath, db: first } = await setupDb();
   const token = await issueDesktopSession("user-1", first);
   await first.$disconnect();
-  const restarted = new PrismaClient({ datasourceUrl: `file:${dbPath}` });
+  const restarted = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${dbPath}` }) });
   try {
     assert.equal((await getDesktopUser(token, restarted))?.id, "user-1");
   } finally {
@@ -39,7 +40,7 @@ test("desktop sessions persist across Prisma clients and server-process restarts
 
 test("desktop sessions store token hashes, enforce one active session, revoke, expire, and reject deactivated accounts", async () => {
   const { directory, db: first } = await setupDb();
-  const second = new PrismaClient({ datasourceUrl: `file:${path.join(directory, "test.db")}` });
+  const second = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${path.join(directory, "test.db")}` }) });
   try {
     const token = await issueDesktopSession("user-1", first);
     const row = await first.desktopSession.findUniqueOrThrow({ where: { tokenHash: hashDesktopToken(token) } });

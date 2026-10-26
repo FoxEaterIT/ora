@@ -31,7 +31,7 @@ export default function UninstallPage() {
       if (data.status?.phase === "succeeded") setAvailable(false);
     } catch { setAvailable(false); }
   }
-  useEffect(() => { void refresh(); const interval = window.setInterval(() => void refresh(), 3000); return () => window.clearInterval(interval); }, []);
+  useEffect(() => { let active = true; const refreshIfActive = () => { if (active) void refresh(); }; const timer = window.setTimeout(refreshIfActive, 0); const interval = window.setInterval(refreshIfActive, 3000); return () => { active = false; window.clearTimeout(timer); window.clearInterval(interval); }; }, []);
 
   async function downloadBackup() {
     setError("");

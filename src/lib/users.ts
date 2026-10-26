@@ -1,4 +1,4 @@
-import type { User } from "@prisma/client";
+import type { User } from "@/generated/prisma/client";
 
 /** Full name shared by user-facing lists and reports. */
 export function fullName(user: Pick<User, "firstName" | "lastName">) {

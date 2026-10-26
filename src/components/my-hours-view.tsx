@@ -30,7 +30,7 @@ export default function MyHoursView({ api, desktop = false }: { api: MyHoursApi;
     setProjects(p.projects ?? []);
     setEntries(e.entries ?? []);
   }, [api]);
-  useEffect(() => { void load().catch((e: Error) => setError(e.message)); }, [load]);
+  useEffect(() => { let active = true; const timer = window.setTimeout(() => { if (active) void load().catch((e: Error) => setError(e.message)); }, 0); return () => { active = false; window.clearTimeout(timer); }; }, [load]);
   async function deleteEntry(id: string) {
     setError("");
     try {
