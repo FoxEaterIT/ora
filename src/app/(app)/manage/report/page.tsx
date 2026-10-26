@@ -13,14 +13,14 @@ type Entry = {
 };
 type Option = { id: string; name: string };
 const COLUMNS = [
-  ["data", "date"], ["persona", "person"], ["email", "email"], ["team", "team"], ["progetto", "project"],
-  ["attivita", "activity"], ["inizio", "start"], ["fine", "end"], ["ore", "duration"], ["nota", "note"],
+  ["date", "date"], ["person", "person"], ["email", "email"], ["team", "team"], ["project", "project"],
+  ["activity", "activity"], ["start", "start"], ["end", "end"], ["duration", "duration"], ["note", "note"],
 ] as const;
 
 export default function ReportPage() {
   const { locale, messages } = useI18n();
   const report = messages.report;
-  const columnLabels = { data: report.date, persona: report.person, email: report.email, team: report.team, progetto: report.project, attivita: report.activity, inizio: report.start, fine: report.end, ore: report.duration, nota: report.note };
+  const columnLabels = { date: report.date, person: report.person, email: report.email, team: report.team, project: report.project, activity: report.activity, start: report.start, end: report.end, duration: report.duration, note: report.note };
   const [entries, setEntries] = useState<Entry[]>([]);
   const [users, setUsers] = useState<Option[]>([]);
   const [projects, setProjects] = useState<Option[]>([]);
@@ -87,10 +87,11 @@ export default function ReportPage() {
           {multiSelect(messages.projects, projects, filters.projectIds, "projectIds")}
           {multiSelect(report.team, teams, filters.teamIds, "teamIds")}
         </div>
-        <div className="mt-4 border-t border-line pt-3">
-          <p className="mb-2 text-sm font-medium">{report.columns}</p>
-          <div className="flex flex-wrap gap-x-4 gap-y-2">{COLUMNS.map(([key, messageKey]) => <label key={key} className="flex items-center gap-2 text-sm"><Checkbox checked={columns.includes(key)} onChange={() => setColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} />{columnLabels[messageKey as keyof typeof columnLabels]}</label>)}</div>
-        </div>
+        <fieldset className="mt-4 border-t border-line pt-3">
+          <legend className="mb-1 text-sm font-semibold text-ink">{report.columns}</legend>
+          <p className="mb-3 text-xs text-muted">{report.columnsHelp}</p>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{COLUMNS.map(([key, messageKey]) => <label key={key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-line/80 bg-surface/65 px-3 py-2 text-sm text-ink shadow-sm backdrop-blur-md transition hover:border-brand/40 hover:bg-surface/90"><Checkbox checked={columns.includes(key)} onChange={() => setColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} />{columnLabels[messageKey as keyof typeof columnLabels]}</label>)}</div>
+        </fieldset>
         <p className="mt-3 text-xs text-muted">{report.filterHelp}</p>
       </Card>
       <div className="mb-5 grid gap-4 md:grid-cols-3"><Summary title={report.byPerson} rows={byPerson} max={total} locale={locale} /><Summary title={report.byProject} rows={byProject} max={total} locale={locale} /><Summary title={report.byTeam} rows={byTeam} max={total} locale={locale} /></div>

@@ -18,11 +18,12 @@ Ora helps small teams track project hours, manage people and teams, and export r
 
 | Area | What you can do |
 |---|---|
-| Time tracking | Track time on assigned projects. The web Timer and Tauri desktop panel share the Timer React view through separate API adapters. The web My hours page and desktop panel also share a view; desktop is currently read-only, while web supports manual entry creation, editing, and deletion. The desktop API remains constrained to its allowlisted routes, and project deletion is unavailable in desktop mode. The responsive web tables scroll horizontally on narrow screens. |
-| Projects | Create projects and assign people. Owners and admins also manage teams, archive projects, and delete projects without time history. |
-| Reports | Filter report data and export CSV or Excel files. Ora Desktop does not support report exports. |
+| Time tracking | Track time on assigned projects. The web app includes Timer and My hours; web users can create, edit, and delete their own entries. Ora Desktop is limited to server sign-in/profiles and time tracking. Its API remains constrained to its allowlisted routes. The responsive web tables scroll horizontally on narrow screens. |
+| Projects | In the web app, create projects and assign people. Owners and admins also manage teams, archive projects, and delete projects without time history. Project management is not available in Ora Desktop. |
+| Reports | Filter report data and export CSV or Excel files in the web app, choosing which fields appear in each exported time-entry row. Reports and exports are not available in Ora Desktop. |
+| Desktop release | When a marked Ora Desktop release is available, open **New version** at the bottom of the web navigation to view the release and download its installers. |
 | Backup | The Owner can download a complete Excel archive of projects, people, teams, and related time entries. |
-| Preferences | Use English, Italian, or Spanish and choose from light and dark themes. Theme text and status colors are tuned for WCAG AA contrast across the web and standalone desktop palettes. Ora provides visible keyboard focus, keyboard-operable dialogs/navigation, and respects the operating system's reduced-motion preference. Confirmation and error prompts appear in Ora's themed dialogs. |
+| Preferences | Use English, Italian, or Spanish and choose from light and dark themes. Native dropdown controls use the same translucent, theme-aware glass surfaces as the rest of the interface, with readable option colors. Theme text and status colors are tuned for WCAG AA contrast across the web and standalone desktop palettes. Ora provides visible keyboard focus, keyboard-operable dialogs/navigation, and respects the operating system's reduced-motion preference. Below the `md` breakpoint, navigation is hidden initially and the menu button switches the page to a left-side navigation panel in normal document flow—never over the page content. Selecting a destination, pressing Escape, or using the close button at the top of the panel returns to the page. At `md` and wider, navigation remains an always-visible left rail. Confirmation and error prompts appear in Ora's themed dialogs. Floating menus and dialogs use more opaque surfaces and a dimmed backdrop for legibility over underlying content. |
 
 > **Data protection:** Deactivating a person preserves their time history. Excel backups contain sensitive information and should be stored securely.
 
@@ -119,7 +120,7 @@ The Owner can open **Uninstall Ora** from the app navigation. First download the
 
 ## Desktop preview
 
-Ora Desktop is an early Windows companion panel for connecting to an Ora server. It supports the Timer, Projects, and read-only My hours views, plus named server profiles. It does not support report exports, and it is not included in Ora's server installer or updater. The window is fixed-size (380 × 680 px).
+Ora Desktop is an early Windows companion for connecting to Ora servers, managing named server profiles, and recording time. Its only app workflows are sign-in/server management and time tracking; all projects, My hours, reports, backups, account administration, and other management features are available in the web app. The desktop API remains allowlisted, and Ora Desktop is not included in Ora's server installer or updater. Its resizable window opens at 440 × 760 px.
 
 > **Preview only:** native Windows/WebView behavior, Credential Manager, installer lifecycle, accessibility, and interactive two-server use have not been fully verified. Do not distribute this preview. Follow the [desktop user and test guide](src-tauri/README.md) for local setup and safe test steps; see the [release checklist](docs/desktop-release-checklist.md) for remaining gates.
 

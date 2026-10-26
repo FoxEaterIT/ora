@@ -17,7 +17,7 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
 }
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <section className={cn("rounded-xl border border-line bg-surface p-5 shadow-[var(--shadow)]", className)}>{children}</section>;
+  return <section className={cn("ora-glass rounded-3xl p-5", className)}>{children}</section>;
 }
 
 export function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
@@ -30,7 +30,7 @@ export function Field({ label, children, className }: { label: string; children:
 }
 
 const control =
-  "w-full min-w-0 rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink shadow-sm outline-none transition placeholder:text-muted/70 hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-danger";
+  "w-full min-w-0 rounded-full border border-line bg-surface/80 px-4 py-2.5 text-sm text-ink shadow-sm outline-none backdrop-blur-md transition placeholder:text-muted/70 hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-danger";
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cn(control, "[color-scheme:inherit]", props.className)} />;
@@ -40,7 +40,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   const { className, children, ...propsWithoutClass } = props;
   return (
     <span className="relative block min-w-0">
-      <select {...propsWithoutClass} className={cn(control, "cursor-pointer appearance-none pr-10", className)}>
+      <select {...propsWithoutClass} className={cn(control, "ora-select cursor-pointer appearance-none pr-10", className)}>
         {children}
       </select>
       <ChevronDown aria-hidden="true" size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted" />
@@ -77,7 +77,7 @@ export function Button({
       {...props}
       aria-busy={busy || undefined}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold shadow-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50",
         variant === "primary" && "bg-brand text-brand-ink hover:bg-[var(--brand-strong)]",
         variant === "ghost" && "border border-line bg-surface text-ink hover:bg-[var(--surface-sunken)]",
         variant === "danger" && "bg-danger text-brand-ink hover:brightness-95 focus-visible:ring-danger/25",
@@ -115,8 +115,8 @@ export function Modal({ title, children, onClose }: { title: string; children: R
     };
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onMouseDown={(event) => event.stopPropagation()} className="max-h-[min(85vh,48rem)] w-full max-w-md overflow-y-auto rounded-xl border border-line bg-surface p-5 shadow-[var(--shadow)] outline-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onMouseDown={(event) => event.stopPropagation()} className="ora-glass max-h-[min(85vh,48rem)] w-full max-w-md overflow-y-auto rounded-3xl !bg-surface-raised p-5 outline-none shadow-2xl">
         <h2 id={titleId} className="text-lg font-semibold">{title}</h2>
         <div className="mt-3 text-sm text-muted">{children}</div>
       </section>
@@ -125,7 +125,7 @@ export function Modal({ title, children, onClose }: { title: string; children: R
 }
 
 export function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-xl border border-dashed border-line bg-surface px-4 py-8 text-center text-sm text-muted">{children}</p>;
+  return <p className="ora-glass rounded-3xl border-dashed px-4 py-8 text-center text-sm text-muted">{children}</p>;
 }
 
 export function ErrorText({ children }: { children: React.ReactNode }) {
@@ -134,5 +134,5 @@ export function ErrorText({ children }: { children: React.ReactNode }) {
 }
 
 export function DataTable({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("overflow-x-auto rounded-xl border border-line bg-surface", className)}><table className="w-full min-w-[540px] text-left text-sm">{children}</table></div>;
+  return <div className={cn("ora-glass overflow-x-auto rounded-3xl", className)}><table className="w-full min-w-[540px] text-left text-sm">{children}</table></div>;
 }

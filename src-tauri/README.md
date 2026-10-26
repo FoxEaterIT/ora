@@ -6,11 +6,9 @@ Ora Desktop is a Windows companion panel for tracking time on an Ora server. Thi
 
 | Feature | Desktop preview behavior |
 | --- | --- |
-| Timer | Start and stop a timer on a project |
-| Projects | View and manage supported project details; team/user directories, archiving, and deletion are excluded |
-| My hours | View your own hours; read-only, with no manual create, edit, or delete |
-| Reports | Report exports are not available |
-| Server profiles | Save multiple server profiles and use one at a time |
+| Time tracking | Start and stop a timer on a project; the desktop scope is limited to tracking workflows |
+| Server profiles | Sign in to an Ora server and save, select, or remove named server profiles |
+| Web-only features | Projects, My hours, reports, backups, account administration, and other management functions remain in the web app |
 | Sign-in | Store a separate session credential for each server origin in Windows Credential Manager |
 | Language | Use English, Italian, or Spanish |
 
@@ -69,12 +67,10 @@ Use test accounts and test servers throughout.
 
 1. **Sign-in and session restore:** sign in, restart the panel, confirm the session restores, then sign out.
 2. **Timer:** start and stop a timer on a test project.
-3. **Projects:** confirm only desktop-supported actions are available.
-4. **My hours:** confirm you can see only your own entries and cannot create, edit, or delete them.
-5. **Two server profiles:** sign in to two test servers, switch between them, and confirm each profile uses only its own session. Remove one profile and confirm the other still works.
-6. **Offline recovery:** temporarily stop one test server, confirm the panel reports the connection problem, then retry after the server returns.
-7. **Restricted actions:** confirm report export and other unsupported desktop API actions are denied.
-8. **Windows credential storage:** verify session restore and profile isolation under the Windows account running the test. Cross-account isolation still needs a separate Windows-account test.
+3. **Two server profiles:** sign in to two test servers, switch between them, and confirm each profile uses only its own session. Remove one profile and confirm the other still works.
+4. **Offline recovery:** temporarily stop one test server, confirm the panel reports the connection problem, then retry after the server returns.
+5. **Web-only actions:** confirm projects, My hours, reports, backups, account administration, and other management workflows are not exposed in desktop.
+6. **Windows credential storage:** verify session restore and profile isolation under the Windows account running the test. Cross-account isolation still needs a separate Windows-account test.
 
 The app asks for confirmation before removing a profile. It rejects API redirects and requests outside the desktop allowlist before forwarding a session token. Temporary restore errors should retain credentials; explicit 401/403 responses should remove only the selected profile's rejected credential.
 

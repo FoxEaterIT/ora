@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Clock3, DatabaseBackup, FolderKanban, LayoutDashboard, LogOut, Menu, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, X, Settings2, RefreshCw, Trash2 } from "lucide-react";
+import { Clock3, DatabaseBackup, FolderKanban, LayoutDashboard, LogOut, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, Settings2, RefreshCw, Trash2, Menu, X, DownloadCloud } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, Modal } from "@/components/ui";
 import { APP_NAME, APP_TAGLINE, AVAILABLE_THEMES, EFFECTIVE_DEFAULT_THEME, appLogoForTheme } from "@/lib/app-config";
@@ -23,11 +23,11 @@ function ShellLink({ link, active }: { link: NavigationLink; active: boolean }) 
       href={link.href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25",
-        active ? "bg-[var(--surface-sunken)] font-semibold text-ink" : "text-muted hover:bg-[var(--surface-sunken)] hover:text-ink",
+        "ora-nav-link flex min-h-12 items-center gap-3 rounded-full px-2 py-1.5 text-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25",
+        active ? "bg-brand/10 font-semibold text-ink" : "text-muted hover:bg-[var(--surface-sunken)] hover:text-ink",
       )}
     >
-      <Icon size={18} aria-hidden="true" />
+      <span className="ora-icon-disc"><Icon size={18} strokeWidth={2.4} aria-hidden="true" /></span>
       {link.label}
     </Link>
   );
@@ -42,14 +42,14 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   const owner = user.role === "OWNER";
   const [theme, setTheme] = useState(EFFECTIVE_DEFAULT_THEME);
   const [lightTheme, setLightTheme] = useState(EFFECTIVE_DEFAULT_THEME);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const drawerRef = useRef<HTMLElement>(null);
-  const drawerTriggerRef = useRef<HTMLButtonElement>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const [narrowViewport, setNarrowViewport] = useState(false);
+  const navigationTriggerRef = useRef<HTMLButtonElement>(null);
+  const navigationPanelRef = useRef<HTMLElement>(null);
   const [update, setUpdate] = useState<{ currentVersion: string; latestVersion: string; releaseUrl: string } | null>(null);
   const [desktopRelease, setDesktopRelease] = useState<{ version: string; releaseUrl: string; body: string; assets: { name: string; url: string }[] } | null>(null);
-  const [showDesktopRelease, setShowDesktopRelease] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<{ phase: string; message: string; targetVersion: string } | null>(null);
   const [updaterAvailable, setUpdaterAvailable] = useState(false);
   const [updateError, setUpdateError] = useState(false);
@@ -58,25 +58,12 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   const brandLogo = appLogoForTheme(theme);
 
   useEffect(() => {
-    if (!drawerOpen) return;
-    const panel = drawerRef.current;
-    const trigger = drawerTriggerRef.current;
-    const focusable = () => panel ? [...panel.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), [tabindex]:not([tabindex='-1'])")].filter((item) => item.offsetParent !== null) : [];
-    focusable()[0]?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.stopPropagation(); setDrawerOpen(false); }
-      if (event.key !== "Tab" || !panel) return;
-      const items = focusable();
-      if (!items.length) { event.preventDefault(); panel.focus(); return; }
-      if (event.shiftKey && (document.activeElement === items[0] || !panel.contains(document.activeElement))) { event.preventDefault(); items[items.length - 1].focus(); }
-      else if (!event.shiftKey && (document.activeElement === items[items.length - 1] || !panel.contains(document.activeElement))) { event.preventDefault(); items[0].focus(); }
-    };
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown, true);
-      if (trigger?.isConnected) trigger.focus();
-    };
-  }, [drawerOpen]);
+    const media = window.matchMedia("(max-width: 767px)");
+    const updateViewport = () => setNarrowViewport(media.matches);
+    updateViewport();
+    media.addEventListener("change", updateViewport);
+    return () => media.removeEventListener("change", updateViewport);
+  }, []);
 
   useEffect(() => {
     const allowedThemes: string[] = THEMES.map((item) => item.value);
@@ -162,10 +149,23 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   }
 
   useEffect(() => {
-    setDrawerOpen(false);
     setAccountOpen(false);
     setThemesOpen(false);
+    setNavigationOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!navigationOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setNavigationOpen(false);
+        navigationTriggerRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    navigationPanelRef.current?.querySelector<HTMLAnchorElement>("a")?.focus();
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [navigationOpen]);
 
   function toggleTheme() {
     const next = theme === "dark" ? lightTheme : "dark";
@@ -206,30 +206,29 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   ];
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-line bg-surface p-4 lg:flex">
-        <div className="mb-6 flex min-w-0 items-center gap-3 px-2">
-          {brandLogo ? <Image src={brandLogo} alt="" width={144} height={40} unoptimized className="max-h-10 max-w-36 object-contain" /> : <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand text-lg font-bold text-brand-ink">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
-          <div className="min-w-0">
-            <p className="truncate text-lg font-semibold tracking-tight text-ink">{APP_NAME}</p>
-            <p className="truncate text-xs text-muted">{APP_TAGLINE}</p>
+    <div className="min-h-screen md:grid md:grid-cols-[17.5rem_minmax(0,1fr)]">
+      <aside ref={navigationPanelRef} id="ora-navigation-panel" aria-label={messages.navigation} className={cn("ora-glass flex flex-col overflow-y-auto border-b p-4 md:sticky md:top-0 md:h-screen md:border-b-0 md:border-r", narrowViewport ? (navigationOpen ? "block min-h-screen" : "hidden") : "")}>
+        <div className="mb-4 flex min-w-0 items-center gap-3 px-2">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            {brandLogo ? <Image src={brandLogo} alt="" width={144} height={40} unoptimized className="max-h-10 max-w-36 object-contain" /> : <span className="ora-icon-disc text-lg font-bold">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
+            <div className="min-w-0">
+              <p className="truncate text-lg font-semibold tracking-tight text-ink">{APP_NAME}</p>
+              <p className="truncate text-xs text-muted">{APP_TAGLINE}</p>
+            </div>
           </div>
+          {narrowViewport && <button type="button" onClick={() => { setNavigationOpen(false); window.setTimeout(() => navigationTriggerRef.current?.focus(), 0); }} aria-label={messages.closeNavigation} className="ora-icon-disc ml-auto shrink-0 md:hidden"><X size={19} aria-hidden="true" /></button>}
         </div>
         <nav aria-label={messages.navigation} className="flex flex-col gap-1">{links.map((link) => <ShellLink key={link.href} link={link} active={pathname === link.href} />)}</nav>
+        {desktopRelease && !desktopMode && <div className="mt-auto border-t border-line/70 pt-3"><ShellLink link={{ href: "/manage/desktop-release", label: messages.newVersion, icon: DownloadCloud }} active={pathname === "/manage/desktop-release"} /></div>}
       </aside>
       <div className="min-w-0">
-      <header className="sticky top-0 z-30 h-16 border-b border-line bg-surface/95 shadow-sm">
+      {!(narrowViewport && navigationOpen) && <>
+      <header className="ora-glass sticky top-0 z-30 h-16 border-x-0 border-t-0">
         <div className="mx-auto flex h-full max-w-[1400px] items-center justify-between px-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <button
-              ref={drawerTriggerRef}
-              onClick={() => setDrawerOpen(true)}
-              aria-label={messages.openNavigation}
-              className="grid h-10 w-10 place-items-center rounded-lg text-muted transition hover:bg-[var(--surface-sunken)] hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25 lg:hidden"
-            >
-              <Menu size={21} />
-            </button>
-            <p className="truncate text-sm font-semibold text-ink lg:hidden">{APP_NAME}</p>
+          <div className="flex items-center justify-start gap-1">
+            {narrowViewport && !navigationOpen && <button ref={navigationTriggerRef} type="button" onClick={() => setNavigationOpen(true)} aria-label={messages.openNavigation} aria-controls="ora-navigation-panel" aria-expanded={false} className="ora-icon-disc md:hidden">
+              <Menu size={19} aria-hidden="true" />
+            </button>}
           </div>
           <div className="flex items-center justify-end gap-1">
             {theme !== "dark" && (
@@ -239,12 +238,12 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
                   aria-label={messages.theme}
                   aria-expanded={themesOpen}
                   title={`${messages.themeLabel}: ${THEMES.find((item) => item.value === lightTheme)?.label || THEMES[0].label}`}
-                  className="grid h-10 w-10 place-items-center rounded-lg text-muted transition hover:bg-[var(--surface-sunken)] hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25"
+                  className="ora-icon-disc text-muted transition hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25"
                 >
                   <Palette size={19} />
                 </button>
                 {themesOpen && (
-                  <div className="absolute right-0 top-12 z-50 w-52 rounded-xl border border-line bg-surface p-2 shadow-[var(--shadow)]">
+                  <div className="ora-glass absolute right-0 top-12 z-50 w-52 rounded-3xl !bg-surface-raised p-2 shadow-2xl">
                     <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-wider text-muted">{messages.lightTheme}</p>
                     {THEMES.map((item) => (
                       <button
@@ -265,12 +264,12 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
               onClick={toggleTheme}
               aria-label={theme === "dark" ? messages.lightMode : messages.darkMode}
               title={theme === "dark" ? messages.lightMode : messages.darkMode}
-              className="grid h-10 w-10 place-items-center rounded-lg text-muted transition hover:bg-[var(--surface-sunken)] hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25"
+              className="ora-icon-disc text-muted transition hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25"
             >
               {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
             </button>
             <label className="sr-only" htmlFor="ora-language">{messages.language}</label>
-            <select id="ora-language" aria-label={messages.language} value={locale} onChange={(event) => setLocale(event.target.value as typeof locale)} className="max-w-20 rounded-lg border border-line bg-surface px-1 py-2 text-xs text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25 sm:max-w-28 sm:px-2">
+            <select id="ora-language" aria-label={messages.language} value={locale} onChange={(event) => setLocale(event.target.value as typeof locale)} className="ora-select max-w-20 rounded-full border border-line bg-surface/80 px-3 py-2 text-xs text-ink shadow-sm backdrop-blur-md transition hover:border-brand/50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25 sm:max-w-28">
               {locales.map((item) => <option key={item} value={item}>{messages.languages[item]}</option>)}
             </select>
             <div className="relative">
@@ -278,12 +277,12 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
                 onClick={() => { setAccountOpen((open) => !open); setThemesOpen(false); }}
                 aria-label={messages.accountMenu}
                 aria-expanded={accountOpen}
-                className={cn("grid h-10 w-10 place-items-center rounded-lg transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25", accountOpen ? "bg-[var(--surface-sunken)] text-ink" : "text-muted hover:bg-[var(--surface-sunken)] hover:text-ink")}
+                className={cn("ora-icon-disc transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25", accountOpen ? "text-ink" : "text-muted hover:text-ink")}
               >
                 <UserRound size={19} />
               </button>
               {accountOpen && (
-                <div className="absolute right-0 top-12 z-50 w-64 rounded-xl border border-line bg-surface p-2 shadow-[var(--shadow)]">
+                <div className="ora-glass absolute right-0 top-12 z-50 w-64 rounded-3xl !bg-surface-raised p-2 shadow-2xl">
                   <div className="border-b border-line px-3 py-3">
                     <p className="truncate text-sm font-semibold text-ink">{user.name}</p>
                     <p className="mt-0.5 truncate text-xs text-muted">{user.email}</p>
@@ -303,50 +302,22 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
         </div>
       </header>
 
-      {drawerOpen && (
-        <div className="fixed inset-0 z-40">
-          <button className="absolute inset-0 bg-ink/40" onClick={() => setDrawerOpen(false)} aria-label={messages.closeNavigation} />
-          <aside ref={drawerRef} role="dialog" aria-modal="true" aria-label={messages.navigation} tabIndex={-1} className="absolute inset-y-0 left-0 flex w-[min(19rem,85vw)] flex-col border-r border-line bg-surface p-5 shadow-[var(--shadow)] outline-none">
-            <div className="mb-8 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {brandLogo ? <Image src={brandLogo} alt="" width={144} height={40} unoptimized className="max-h-10 max-w-36 object-contain" /> : <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand text-lg font-bold text-brand-ink">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
-                <div>
-                  <p className="text-lg font-semibold tracking-tight text-ink">{APP_NAME}</p>
-                  <p className="text-xs text-muted">{APP_TAGLINE}</p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setDrawerOpen(false)} aria-label={messages.closeNavigation} className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-[var(--surface-sunken)] hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25"><X size={19} aria-hidden="true" /></button>
-            </div>
-            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted">{messages.navigation}</p>
-            <nav aria-label={messages.navigation} className="flex flex-col gap-1">{links.map((link) => <ShellLink key={link.href} link={link} active={pathname === link.href} />)}</nav>
-          </aside>
-        </div>
-      )}
 
-      {desktopRelease && !desktopMode && (
-        <div role="status" className="mx-auto mt-4 max-w-[1400px] rounded-lg border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-ink sm:mx-6 lg:mx-auto">
-          <p className="font-semibold">{messages.desktopReleaseAvailable.replace("{version}", desktopRelease.version)}</p>
-          <button type="button" onClick={() => setShowDesktopRelease(true)} className="font-semibold text-brand underline underline-offset-2">{messages.viewRelease}</button>
-          <ul className="mt-2 grid gap-2">
-            {desktopRelease.assets.map((asset) => <li key={asset.name}>{asset.name}: <a href={asset.url} target="_blank" rel="noreferrer" className="text-brand underline">{messages.downloadDesktop}</a></li>)}
-          </ul>
-        </div>
-      )}
       {update && (
-        <div role="status" className="mx-auto mt-4 flex max-w-[1400px] flex-wrap items-center justify-between gap-3 rounded-lg border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-ink sm:mx-6 lg:mx-auto">
+        <div role="status" className="ora-glass mx-4 mt-4 flex max-w-[1400px] flex-wrap items-center justify-between gap-3 rounded-3xl bg-brand/10 px-4 py-3 text-sm text-ink sm:mx-6">
           <p>{messages.updateAvailable.replace("{version}", update.latestVersion).replace("{current}", update.currentVersion)}</p>
           <div className="flex items-center gap-4">
             <a href={update.releaseUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand underline underline-offset-2">{messages.viewRelease}</a>
-            {updaterAvailable && (!updateStatus || ["idle", "succeeded", "failed"].includes(updateStatus.phase)) && <button onClick={() => setConfirmUpdate(true)} className="inline-flex items-center gap-2 rounded-lg bg-brand px-3 py-2 font-semibold text-brand-ink hover:bg-[var(--brand-strong)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25"><RefreshCw size={15} />{messages.installUpdate}</button>}
+            {updaterAvailable && (!updateStatus || ["idle", "succeeded", "failed"].includes(updateStatus.phase)) && <button onClick={() => setConfirmUpdate(true)} className="inline-flex items-center gap-2 rounded-full bg-brand px-3 py-2 font-semibold text-brand-ink hover:bg-[var(--brand-strong)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25"><RefreshCw size={15} />{messages.installUpdate}</button>}
           </div>
           {updateStatus && !["idle", "succeeded"].includes(updateStatus.phase) && <p role="status" aria-atomic="true" className="basis-full">{messages.updatePhase}: {updateStatus.message || updateStatus.phase}{updateError ? ` — ${messages.updateServiceUnavailable}` : ""}</p>}
           {updateStatus?.phase === "succeeded" && <p role="status" aria-atomic="true" className="basis-full">{messages.updateDone}</p>}
           {!updaterAvailable && <p className="basis-full text-muted">{messages.updaterUnavailable}</p>}
         </div>
       )}
-      {showDesktopRelease && desktopRelease ? <Modal title={messages.releaseDetails} onClose={() => setShowDesktopRelease(false)}><div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm">{desktopRelease.body || messages.desktopReleaseAvailable.replace("{version}", desktopRelease.version)}</div><div className="mt-5 flex justify-end"><Button onClick={() => setShowDesktopRelease(false)}>{messages.app.cancel}</Button></div></Modal> : null}
       {confirmUpdate ? <Modal title={messages.installUpdate} onClose={() => setConfirmUpdate(false)}><p>{messages.updateConfirm}</p><div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={() => setConfirmUpdate(false)}>{messages.app.cancel}</Button><Button onClick={() => void startUpdate()}>{messages.installUpdate}</Button></div></Modal> : null}
       <main className="mx-auto min-w-0 max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</main>
+      </>}
       </div>
     </div>
   );

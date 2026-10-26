@@ -1,6 +1,6 @@
 # Ora Desktop parity inventory
 
-Source review date: 2026-10-23. This inventory maps the current web UI to the approved desktop scope in [`desktop-release-checklist.md`](desktop-release-checklist.md) and the existing API contract in [`desktop-security-contract.md`](desktop-security-contract.md). It describes source behavior and current desktop implementation; it does not claim native runtime validation.
+Source review date: 2026-10-26. This inventory maps the current web UI to the approved reduced desktop scope in [`desktop-release-checklist.md`](desktop-release-checklist.md) and the existing API contract in [`desktop-security-contract.md`](desktop-security-contract.md). It describes source behavior and current desktop implementation; it does not claim native runtime validation. Ora Desktop exposes only sign-in/server-profile management and time tracking; all other product workflows remain web-only.
 
 ## Pages and navigation
 
@@ -8,11 +8,11 @@ Source review date: 2026-10-23. This inventory maps the current web UI to the ap
 |---|---|---|---|
 | `/login` | Anonymous | In scope, adapted | Desktop-token login for active accounts. Do not create browser cookies. |
 | `/setup` | Anonymous initial setup | Excluded | Initial owner provisioning remains a web/server setup flow. |
-| `/` Timer | All authenticated roles | Implemented, shared view | Shared `TimerView` renders in web and Tauri with separate API adapters. Desktop currently limits controls to start/stop and relies on the guarded desktop API; desktop editing/deletion parity remains out of scope for this slice. |
-| `/timesheet` My hours | All authenticated roles | Implemented, shared view | Shared `MyHoursView` renders in web and Tauri via separate adapters. Desktop currently presents the permitted own-entry list read-only; web retains manual create/edit/delete. |
-| `/projects` | All authenticated roles | In scope | Create and edit projects and assignments under the web policy. Owner/Admin may set team/archive state and delete only projects with no time history; User may not perform those manager actions. |
-| `/manage/projects` (legacy/management view) | Owner/Admin controls; some project operations available to all roles from `/projects` | Not a separate required desktop page | Implement the in-scope project capabilities in a desktop-appropriate way; avoid duplicate web management navigation. |
-| `/manage/teams` | Owner/Admin in web navigation; teams have read-only desktop API scope | Partially in scope | Read the user's permitted teams and member names/emails only. Team creation, editing, assignment administration, and deletion remain excluded. |
+| `/` Timer | All authenticated roles | In scope, standalone desktop tracker | Desktop offers time tracking using its inline UI and guarded desktop API; no shared web feature view is mounted. |
+| `/timesheet` My hours | All authenticated roles | Web only | Not exposed in desktop; web retains own-entry list and manual create/edit/delete. |
+| `/projects` | All authenticated roles | Web only | Project creation, metadata, and member assignment remain web features under the web role policy. |
+| `/manage/projects` (legacy/management view) | Owner/Admin controls; some project operations available to all roles from `/projects` | Web only | Project management remains in the web app. |
+| `/manage/teams` | Owner/Admin in web navigation; teams have read-only desktop API scope | Web only | Team workflows are not exposed in desktop; API restrictions remain in place. |
 | `/manage/people` | Owner/Admin | Excluded | People administration, activation/deactivation, and password reset are expressly forbidden to desktop sessions. |
 | `/manage/report` | Owner/Admin | Excluded | Reports and cross-user/project/team filtering are not available to desktop sessions. |
 | `/manage/backups` | Owner | Excluded | No data backup/export from desktop. |
@@ -24,7 +24,7 @@ Source review date: 2026-10-23. This inventory maps the current web UI to the ap
 
 ## Server profiles and onboarding design
 
-- The first launch starts with no active server profile and presents a setup form; login is unavailable until a valid profile is selected. The current panel now has local profile selection, save, and removal controls; profile usability and removal-flow confirmation still need refinement.
+- The first launch starts with no active server profile and presents a setup form; login is unavailable until a valid profile is selected. The panel provides local profile selection, save, and removal controls with an in-app confirmation.
 - A profile consists of a user-editable display name and a normalized origin (`http[s]://host[:port]`). Reject credentials, path (other than `/`), query, fragment, unsupported schemes, and malformed hosts. Normalize scheme/host/default port for duplicate detection; do not silently merge profiles with different origins.
 - Save profile metadata, active profile id, locale/theme preferences, and per-origin HTTP trust decisions as non-secret local preferences. Never save passwords or bearer tokens there.
 - Store each opaque token in the OS credential store using a fixed service identifier and a deterministic account identifier derived from the normalized origin (e.g. a SHA-256 digest). Validate the account-key format natively; do not accept arbitrary keyring names from frontend input. This replaces the current single global `session` record, which cannot isolate multiple active server profiles.
@@ -43,6 +43,10 @@ Source review date: 2026-10-23. This inventory maps the current web UI to the ap
 - **Account changes/deactivation:** server revocation is authoritative. If the next authenticated request fails, clear that profile's token. Direct users to the web app for password change, reset, activation, or account recovery; the desktop does not implement those operations.
 - **Network/server outage:** retain the profile and token, show retry and current server identity, and do not silently log out solely due to a transport failure. Do not send the token to a fallback origin. Distinguish transport failure from HTTP 401/403 session rejection.
 - **Multiple profiles:** one active profile at a time. Switching profiles never copies session state; it restores the selected profile's own keyring item or presents login. A token can be rejected by its server if another client replaced the account's single live session.
+
+## Desktop UI architecture
+
+The standalone Tauri panel contains only login, server-profile management, and its inline time-tracking workflow. Projects and My hours React views and adapters are not mounted in the desktop bundle. This UI restriction does not broaden the desktop API allowlist; web routes and role checks remain unchanged.
 
 ## Shared UI architecture decision
 

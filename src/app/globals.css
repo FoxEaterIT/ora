@@ -145,10 +145,38 @@ body {
 }
 
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 12% -8%, color-mix(in srgb, var(--brand) 18%, transparent), transparent 34rem),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--info) 12%, transparent), transparent 28rem),
+    var(--bg);
   color: var(--ink);
   font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
   min-height: 100vh;
+}
+
+.ora-glass {
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px) saturate(1.35);
+}
+
+.ora-icon-disc {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand) 16%, var(--surface-raised));
+  color: var(--brand-strong);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--brand) 55%, transparent);
+}
+
+.ora-nav-link[aria-current="page"] .ora-icon-disc {
+  background: var(--brand);
+  color: var(--brand-ink);
+  box-shadow: inset 0 0 0 1.5px var(--brand-strong);
 }
 
 .ora-time {
@@ -162,6 +190,20 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+.ora-select {
+  color-scheme: inherit;
+}
+
+.ora-select option {
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .ora-select {
+  background-color: rgb(255 255 255 / 0.08);
+  border-color: rgb(255 255 255 / 0.18);
 }
 
 button {

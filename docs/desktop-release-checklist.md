@@ -2,6 +2,10 @@
 
 This checklist defines the work required before Ora Desktop can be distributed. The current Tauri client is a preview; do not publish or bundle it into the Ora installer until every release gate is completed and validated.
 
+## Product scope
+
+Ora Desktop is limited to sign-in, multiple Ora server profile management, and time tracking. Projects, My hours, reports, backups, account administration, and other management features remain available in the web app only. The desktop API allowlist and server-side authorization remain mandatory regardless of hidden UI.
+
 ## Release goals
 
 - [ ] Desktop authentication uses Ora credentials and issues desktop-only sessions without creating browser cookies.
@@ -99,7 +103,7 @@ The current desktop API contract exposes only a subset of web functionality. Vis
 | Roles | Owner, Admin, and User may sign in with an active account; role authorization continues to apply. |
 | Server profiles | Users can configure and save multiple Ora server profiles, select/switch profiles, and keep credentials/session tokens isolated per server. |
 | Server origins | HTTPS is supported. HTTP requires explicit trust confirmation for each origin. Never store credentials or tokens in URLs or plaintext configuration. |
-| Window/platform/locales | Fixed 380 × 680 px, non-resizable; Windows 10/11; English, Italian, and Spanish. |
+| Window/platform/locales | Resizable, opens at 440 × 760 px (minimum 380 × 620); Windows 10/11; English, Italian, and Spanish. |
 | Server topology | Desktop connects to an existing Ora server and does not bundle a local Ora server/database. |
 
 ### Implementation checklist
