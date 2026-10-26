@@ -60,7 +60,9 @@ All variables are defined in [`.env.example`](.env.example). The installer creat
 | `SESSION_DURATION_DAYS` | Session lifetime in days | Optional | `7` |
 | `PASSWORD_HASH_ROUNDS` | Password hash cost | Optional | `10` |
 | `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_APP_TAGLINE`, `NEXT_PUBLIC_APP_DESCRIPTION` | Client-visible application branding | Optional | `Ora` |
-| `NEXT_PUBLIC_APP_LOGO_LIGHT`, `NEXT_PUBLIC_APP_LOGO_DARK` | Custom logo paths under `public/custom/` | Optional | `/custom/logo.svg` |
+| `NEXT_PUBLIC_APP_LOGO_LIGHT`, `NEXT_PUBLIC_APP_LOGO_DARK` | Optional custom logos that replace the default transparent Ora clock mark; paths must be under `public/custom/` | Optional | `/custom/logo.svg` |
+
+Ora's default clock logo is `public/ora-logo.png` (transparent PNG), with `public/ora-logo.svg` as its vector source. It appears in the web navigation panel, sign-in/setup screens, and as the web favicon; it is also the Ora Desktop application icon and appears in the desktop UI. A custom light or dark logo in `.env` overrides the default web logo; one configured logo is shared across themes.
 | `NEXT_PUBLIC_DEFAULT_THEME`, `NEXT_PUBLIC_ORA_THEMES` | Initial theme and available light themes | Optional | `ora-default` |
 | `NEXT_PUBLIC_THEME_*_LABEL`, `NEXT_PUBLIC_THEME_*_COLOR` | Labels and swatches for theme presets | Optional | `Ora blue`, `#2878c7` |
 | `NEXT_PUBLIC_DEFAULT_PROJECT_COLOR`, `NEXT_PUBLIC_DEFAULT_TEAM_COLOR` | Default project and team colors | Optional | `#14b8a6` |

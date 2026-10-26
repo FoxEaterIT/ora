@@ -9,5 +9,5 @@
     "windows": [{ "title": "Ora Timer", "width": 440, "height": 760, "minWidth": 380, "minHeight": 620, "resizable": true, "devtools": false }],
     "security": { "csp": "default-src 'self'; connect-src 'self' http: https:; img-src 'self' data: https:; style-src 'self'; script-src 'self'" }
   },
-  "bundle": { "active": true, "targets": ["msi", "nsis"], "icon": ["icons/icon.ico"], "windows": { "nsis": { "displayLanguageSelector": false } } }
+  "bundle": { "active": true, "targets": ["msi", "nsis"], "icon": ["icons/icon.png", "icons/icon.ico"], "windows": { "nsis": { "displayLanguageSelector": false } } }
 }

@@ -8,6 +8,7 @@ function customLogoPath(value: string | undefined) {
   return /^\/custom\/[\w./-]+$/.test(path) && !path.split("/").includes("..") ? path : "";
 }
 
+export const DEFAULT_APP_LOGO = "/ora-logo.png";
 export const APP_LOGO_LIGHT = customLogoPath(process.env.NEXT_PUBLIC_APP_LOGO_LIGHT);
 export const APP_LOGO_DARK = customLogoPath(process.env.NEXT_PUBLIC_APP_LOGO_DARK);
 export const PROJECT_COLORS = (process.env.NEXT_PUBLIC_PROJECT_COLORS || "#14b8a6,#5b5bd6,#f97316,#e11d48,#0ea5e9,#84cc16,#a855f7").split(",").map((color) => color.trim()).filter(Boolean);
@@ -30,6 +31,6 @@ export const EFFECTIVE_DEFAULT_THEME = AVAILABLE_THEMES.some((theme) => theme.va
   : "ora-default";
 
 export function appLogoForTheme(theme: string) {
-  if (theme === "dark") return APP_LOGO_DARK || APP_LOGO_LIGHT;
-  return APP_LOGO_LIGHT || APP_LOGO_DARK;
+  if (theme === "dark") return APP_LOGO_DARK || APP_LOGO_LIGHT || DEFAULT_APP_LOGO;
+  return APP_LOGO_LIGHT || APP_LOGO_DARK || DEFAULT_APP_LOGO;
 }

@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: `${APP_NAME} — ${APP_TAGLINE}`,
   description: APP_DESCRIPTION,
+  icons: { icon: [{ url: "/favicon.ico" }, { url: "/ora-logo.png", type: "image/png" }], shortcut: "/favicon.ico", apple: "/ora-logo.png" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

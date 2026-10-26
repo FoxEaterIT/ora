@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Ora clock logo">
+  <g stroke="#24574d" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="119" cy="129" r="83" fill="#f3f1ea"/>
+    <path d="M119 59v12M119 187v12M49 129h12M177 129h12" fill="none"/>
+    <path d="M119 129V88M119 129l-27 24" fill="none" stroke="#2f6f62" stroke-width="13"/>
+    <circle cx="119" cy="129" r="7" fill="#2f6f62" stroke="none"/>
+    <path d="M75 92c8-10 20-10 28-2M80 91l5 7 7-5" fill="none" stroke="#d07b4b" stroke-width="8"/>
+    <path d="M170 170c12-7 20-17 26-27l15-24c4-7 14-4 13 4l-4 23h17c9 0 12 11 6 17l-7 7c5 6 2 15-5 18 2 7-3 14-11 15-3 9-9 14-20 14h-18c-9 0-17-4-24-11l-10-11z" fill="#f3f1ea"/>
+    <path d="M192 168l-1 35M217 166l-7 10M223 184l-8 4M212 203l-7 1" fill="none" stroke="#2f6f62" stroke-width="5"/>
+  </g>
+</svg>

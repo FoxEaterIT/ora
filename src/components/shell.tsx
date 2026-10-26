@@ -208,12 +208,12 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   return (
     <div className="min-h-screen md:grid md:grid-cols-[17.5rem_minmax(0,1fr)]">
       <aside ref={navigationPanelRef} id="ora-navigation-panel" aria-label={messages.navigation} className={cn("ora-glass flex flex-col overflow-y-auto border-b p-4 md:sticky md:top-0 md:h-screen md:border-b-0 md:border-r", narrowViewport ? (navigationOpen ? "block min-h-screen" : "hidden") : "")}>
-        <div className="mb-4 flex min-w-0 items-center gap-3 px-2">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            {brandLogo ? <Image src={brandLogo} alt="" width={144} height={40} unoptimized className="max-h-10 max-w-36 object-contain" /> : <span className="ora-icon-disc text-lg font-bold">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
+        <div className="mb-4 flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {brandLogo ? <Image src={brandLogo} alt="" width={48} height={48} unoptimized className="h-12 w-12 shrink-0 object-contain" /> : <span className="ora-icon-disc shrink-0 text-lg font-bold">{APP_NAME.slice(0, 1).toUpperCase()}</span>}
             <div className="min-w-0">
               <p className="truncate text-lg font-semibold tracking-tight text-ink">{APP_NAME}</p>
-              <p className="truncate text-xs text-muted">{APP_TAGLINE}</p>
+              <p className="text-xs leading-snug text-muted">{APP_TAGLINE}</p>
             </div>
           </div>
           {narrowViewport && <button type="button" onClick={() => { setNavigationOpen(false); window.setTimeout(() => navigationTriggerRef.current?.focus(), 0); }} aria-label={messages.closeNavigation} className="ora-icon-disc ml-auto shrink-0 md:hidden"><X size={19} aria-hidden="true" /></button>}
