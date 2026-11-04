@@ -4,16 +4,23 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Clock3, DatabaseBackup, FolderKanban, LayoutDashboard, LogOut, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, Settings2, RefreshCw, Trash2, Menu, X, DownloadCloud } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button, Modal } from "@/components/ui";
-import { APP_NAME, APP_TAGLINE, AVAILABLE_THEMES, EFFECTIVE_DEFAULT_THEME, appLogoForTheme } from "@/lib/app-config";
+import { Clock3, DatabaseBackup, FolderKanban, LayoutDashboard, LogOut, Moon, Palette, Sun, Timer, UserRound, Users, UsersRound, Settings2, RefreshCw, Trash2, Menu, X, DownloadCloud } from "lucide-react";
+import { DesktopUpdateNotice } from "./desktop-update-notice";
+import { cn } from "@/lib/utils";
+import { APP_NAME, APP_TAGLINE, AVAILABLE_THEMES, DESKTOP_APP_VERSION, EFFECTIVE_DEFAULT_THEME, appLogoForTheme } from "@/lib/app-config";
 import { locales } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
 
 export type SessionUser = { id: string; firstName: string; lastName: string; name: string; email: string; role: "OWNER" | "ADMIN" | "USER" };
 
 const THEMES = AVAILABLE_THEMES;
+function compareVersions(left: string, right: string) {
+  const a = left.split(".").map(Number);
+  const b = right.split(".").map(Number);
+  for (let index = 0; index < 3; index++) if ((a[index] ?? 0) !== (b[index] ?? 0)) return (a[index] ?? 0) - (b[index] ?? 0);
+  return 0;
+}
 type NavigationLink = { href: string; label: string; icon: typeof Timer };
 
 function ShellLink({ link, active }: { link: NavigationLink; active: boolean }) {
@@ -36,7 +43,7 @@ function ShellLink({ link, active }: { link: NavigationLink; active: boolean }) 
 export function Shell({ user, children }: { user: SessionUser; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const desktopMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("desktop");
+  const [desktopMode, setDesktopMode] = useState(false);
   const { locale, messages, setLocale } = useI18n();
   const manager = user.role !== "USER";
   const owner = user.role === "OWNER";
@@ -49,7 +56,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   const navigationTriggerRef = useRef<HTMLButtonElement>(null);
   const navigationPanelRef = useRef<HTMLElement>(null);
   const [update, setUpdate] = useState<{ currentVersion: string; latestVersion: string; releaseUrl: string } | null>(null);
-  const [desktopRelease, setDesktopRelease] = useState<{ version: string; releaseUrl: string; body: string; assets: { name: string; url: string }[] } | null>(null);
+  const [desktopRelease, setDesktopRelease] = useState<{ version: string; releaseUrl: string; body: string; assets: { name: string; url: string; digest?: string | null }[] } | "unavailable" | null>(null);
   const [updateStatus, setUpdateStatus] = useState<{ phase: string; message: string; targetVersion: string } | null>(null);
   const [updaterAvailable, setUpdaterAvailable] = useState(false);
   const [updateError, setUpdateError] = useState(false);
@@ -83,17 +90,27 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
   }, []);
 
   useEffect(() => {
+    const enabled = new URLSearchParams(window.location.search).has("desktop");
+    const timer = window.setTimeout(() => setDesktopMode(enabled), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     if (desktopMode) return;
     let active = true;
     fetch("/api/desktop-release", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : null)
-      .then((data) => { if (active && data?.version && Array.isArray(data.assets)) setDesktopRelease(data); })
-      .catch(() => undefined);
+      .then((data) => {
+        if (!active) return;
+        if (data?.githubUnavailable === true) setDesktopRelease("unavailable");
+        else if (data?.version && Array.isArray(data.assets) && compareVersions(data.version, DESKTOP_APP_VERSION) > 0) setDesktopRelease(data);
+      })
+      .catch(() => { if (active) setDesktopRelease("unavailable"); });
     return () => { active = false; };
   }, [desktopMode]);
 
   useEffect(() => {
-    if (!manager) return;
+    if (!manager || desktopMode) return;
     let active = true;
     fetch("/api/version", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : null)
@@ -104,10 +121,10 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
       })
       .catch(() => undefined);
     return () => { active = false; };
-  }, [manager]);
+  }, [manager, desktopMode]);
 
   useEffect(() => {
-    if (!manager) return;
+    if (!manager || desktopMode) return;
     let active = true;
     let failures = 0;
     let stopped = false;
@@ -138,7 +155,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
     void poll();
     const interval = window.setInterval(() => { void poll(); }, 3000);
     return () => { active = false; window.clearInterval(interval); };
-  }, [manager, updating]);
+  }, [manager, desktopMode, updating]);
 
   async function startUpdate() {
     setConfirmUpdate(false);
@@ -224,7 +241,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
           {narrowViewport && <button type="button" onClick={() => { setNavigationOpen(false); window.setTimeout(() => navigationTriggerRef.current?.focus(), 0); }} aria-label={messages.closeNavigation} className="ora-icon-disc ml-auto shrink-0 md:hidden"><X size={19} aria-hidden="true" /></button>}
         </div>
         <nav aria-label={messages.navigation} className="flex flex-col gap-1">{links.map((link) => <ShellLink key={link.href} link={link} active={pathname === link.href} />)}</nav>
-        {desktopRelease && !desktopMode && <div className="mt-auto border-t border-line/70 pt-3"><ShellLink link={{ href: "/manage/desktop-release", label: messages.newVersion, icon: DownloadCloud }} active={pathname === "/manage/desktop-release"} /></div>}
+        {!desktopMode && desktopRelease === "unavailable" && <p role="status" className="mt-auto border-t border-line/70 pt-3 text-xs text-muted">{messages.desktopReleaseUnavailable}</p>}
       </aside>
       <div className="min-w-0">
       {!(narrowViewport && navigationOpen) && <>
@@ -321,6 +338,7 @@ export function Shell({ user, children }: { user: SessionUser; children: React.R
         </div>
       )}
       {confirmUpdate ? <Modal title={messages.installUpdate} onClose={() => setConfirmUpdate(false)}><p>{messages.updateConfirm}</p><div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={() => setConfirmUpdate(false)}>{messages.app.cancel}</Button><Button onClick={() => void startUpdate()}>{messages.installUpdate}</Button></div></Modal> : null}
+      {!desktopMode && desktopRelease && desktopRelease !== "unavailable" && <DesktopUpdateNotice release={desktopRelease} />}
       <main className="mx-auto min-w-0 max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</main>
       </>}
       </div>

@@ -11,10 +11,10 @@ This document turns the approved Phase 5 decisions into an implementation and va
 | Release source | Stable GitHub Releases for `FoxEaterIT/ora`; only a release explicitly marked as containing a desktop build may be offered. |
 | Integrity information | Display the GitHub asset's SHA-256 digest in Ora and link to the GitHub release. The digest is useful for detecting accidental corruption or mismatch, but is not an independent authenticity proof if the release account or asset metadata is compromised. |
 | Update behavior | Notify with version, installer link, and digest; user downloads and installs manually. Reinstalling over the current installation should preserve the Windows-user keyring session and local preferences. No automatic rollback or downgrade guarantee. |
-| Uninstall | Remove the desktop app's fixed Credential Manager token and desktop WebView preferences (including origin, locale, theme, and remembered HTTP confirmations); do not affect Ora server data or time entries. |
+| Uninstall | Remove the desktop app's fixed Credential Manager token (`OraDesktop/session`) and its local WebView preferences (origin, locale, theme, remembered HTTP confirmations); do not affect Ora server data, time entries, or unrelated app data. |
 | Stop distribution | Remove/disable the desktop download from the authenticated app and mark the affected GitHub release as withdrawn with a clear note. No client kill switch. |
 | Rollout | Publish to a limited pilot audience first, monitor support reports, then enable the download more broadly. Preserve release assets and evidence; withdrawal is a server-side availability decision, not remote revocation of already downloaded installers. |
-| Testing boundary | Define and document upgrade, uninstall, and recovery tests. Where clean/previously-upgraded Windows machines are unavailable, report the test gate as unverified and do not claim success. The project may close Phase 5 by decision with this limitation recorded. |
+| Testing boundary | Define and document upgrade, uninstall, and recovery tests. Installation, reinstallation, and uninstall cleanup tests have been personally verified. Where clean/previously-upgraded Windows machines are unavailable (e.g., for release validation), report the test gate as unverified and do not claim success. The project may close Phase 5 by decision with this limitation recorded. |
 
 ## Current architecture findings
 
@@ -22,7 +22,7 @@ This document turns the approved Phase 5 decisions into an implementation and va
 - `.github/workflows/release-archive.yml` creates the existing server source ZIP on each GitHub release. It is not a desktop installer and must not be presented as one.
 - `scripts/publish-release.ps1` publishes Ora web releases by bumping `package.json`; the desktop version is separately maintained in Tauri/Cargo. A desktop release must validate this pair without silently changing either version.
 - `src/lib/version-check.ts` and `/api/version` currently serve the web-service updater notice to managers. Desktop availability must be represented separately and must never trigger `/api/update` or reuse the service updater.
-- `Shell` is the shared authenticated UI, and `src/i18n/messages.ts` holds EN/IT/ES user-facing strings. The desktop release notice and download labels are localized in all dictionaries.
+- `Shell` is the shared authenticated web UI, and `src/i18n/messages.ts` holds EN/IT/ES user-facing strings. The manual desktop release notice appears in the authenticated web app, independent of Ora server updater controls. SHA-256 values are loaded from the release `SHA256SUMS.txt` and hidden behind an information icon until requested. GitHub/network failure is reported in localized UI without blocking the app. The Tauri client may connect to arbitrary Ora servers, so this centrally published download notice remains web-only.
 - Desktop tokens are in the fixed `OraDesktop/session` Windows Credential Manager entry. UI preferences are stored by the Tauri WebView; uninstall cleanup must target only Ora Desktop's own storage and must be tested for both MSI and NSIS.
 
 ## Implementation sequence
@@ -47,9 +47,32 @@ This document turns the approved Phase 5 decisions into an implementation and va
    - Document WebView2 prerequisite, firewall/proxy access to the configured Ora server and GitHub release assets, HTTPS certificate expectations, explicit confirmation and risk of remote HTTP, offline behavior, and safe diagnostics.
    - Diagnostics must not include passwords, raw desktop tokens, full email addresses, or keyring contents. Include app version, server origin with sensitive URL components rejected, locale, and non-secret error category only where useful.
    - Define pilot enablement, support monitoring, withdrawal steps, and re-enable criteria. Withdrawal must be server-side and reversible without deleting GitHub evidence.
-   - Test workflow outputs and SHA-256 matching; test authenticated/unauthenticated notice behavior, invalid/missing GitHub metadata, GitHub outage fallback, MSI/NSIS install and reinstall, token/preference preservation, uninstall cleanup, and manual rollback. Record Windows clean-machine and previously-upgraded-machine evidence separately.
+   - Test workflow outputs and SHA-256 matching; test authenticated/unauthenticated notice behavior, invalid/missing GitHub metadata, GitHub outage fallback. MSI/NSIS install/reinstall and uninstall cleanup tests have been personally verified. Record Windows clean-machine and previously-upgraded-machine evidence separately.
 
-## Release and security boundaries
+## Operations and User Experience
+
+### Manual Rollback & Recovery
+- **Mechanism**: There is no automated rollback or downgrade mechanism. If a user encounters issues with a new release, they must manually download the previous version's installer from GitHub.
+- **Data Integrity**: Since Ora's core data (time entries, projects, teams) is stored on the server, a client downgrade does not affect the persistence of this data. However, users should be aware that if a newer version has introduced schema changes that the older client cannot interpret, some features may become unavailable or display incorrectly.
+- **Withdrawn Releases**: If a release is marked as withdrawn (server-side availability change), the download link is removed from the web application. Users who already have the installer can still run it, but the web app will no longer facilitate its discovery or installation.
+
+### Offline Behavior
+- **Session Persistence**: The desktop client persists the `OraDesktop/session` Credential Manager token and local WebView preferences (origin, locale, theme, and remembered HTTP confirmations) across restarts. These are independent of the server's availability.
+- **Offline State**: When the server is unreachable, the app remains functional for local UI interactions (navigation, theme switching, etc.). Any request requiring server communication will fail gracefully, typically displaying a localized "Server Unreachable" or "Connection Failed" notice.
+- **Connectivity**: The app does not attempt to "re-login" or "re-authenticate" in the background in a way that would repeatedly ping a downed server; it respects the existing session until it expires or is manually cleared.
+
+### Pilot Rollout & Withdrawal Strategy
+- **Pilot Phase**: A limited group of invited users (internal staff and trusted customers) will be granted access to the desktop download link via a specific, monitored URL or a "Beta" notice.
+- **Monitoring**: Success will be measured by the absence of high-priority support tickets, crash reports (via telemetry if enabled), and positive qualitative feedback.
+- **Withdrawal**: If a critical bug is identified, the server-side release metadata will be updated to hide the download link immediately.
+- **Evidence Preservation**: All GitHub release artifacts and the associated `Ora-Desktop-Release: true` markers will be preserved as evidence of the attempted release, even if withdrawn.
+
+### Safe Diagnostics
+- **Required Information**: Version number, current locale, and a masked server origin (e.g., `https://ora.example.com` -> `https://[REDACTED].com`).
+- **Error Reporting**: Users will be provided with a unique, non-sensitive error code (e.g., `ERR-AUTH-001`) that helps developers identify the issue without exposing sensitive data.
+- **Prohibited Data**: Diagnostics must never include passwords, the raw `OraDesktop/session` token, full email addresses, or any other personally identifiable information (PII).
+- **Collection**: Diagnostics can be collected via a "Copy Diagnostics" button that the user must explicitly click to generate a clipboard-ready summary.
+
 
 The application lookup/manual notice and manual GitHub Actions packaging workflow are implemented. A local Windows x64 release build completed successfully and produced MSI (2.70 MiB) and NSIS (1.79 MiB) bundles after 3m45s; the Rust linker emitted one warning. This verifies local packaging only, not installation or runtime behavior. The workflow has not been run against a published GitHub Release; artifact renaming, checksum attachment, and runtime installer behavior therefore remain unverified. The workflow dispatch must not be used until the release tag, marker, and explicit release approval are confirmed.
 

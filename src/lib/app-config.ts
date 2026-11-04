@@ -1,6 +1,7 @@
 export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Ora";
 export const APP_TAGLINE = process.env.NEXT_PUBLIC_APP_TAGLINE?.trim() || "Time tracking";
 export const APP_DESCRIPTION = process.env.NEXT_PUBLIC_APP_DESCRIPTION?.trim() || `Traccia ore di progetti, team e persone con ${APP_NAME}.`;
+export const DESKTOP_APP_VERSION = process.env.NEXT_PUBLIC_DESKTOP_APP_VERSION?.trim() || "2.0.0";
 export const APP_DEFAULT_THEME = process.env.NEXT_PUBLIC_DEFAULT_THEME?.trim() || "ora-default";
 function customLogoPath(value: string | undefined) {
   const path = value?.trim() || "";

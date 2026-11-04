@@ -1,6 +1,6 @@
 # Ora Desktop parity inventory
 
-Source review date: 2026-10-26. This inventory maps the current web UI to the approved reduced desktop scope in [`desktop-release-checklist.md`](desktop-release-checklist.md) and the existing API contract in [`desktop-security-contract.md`](desktop-security-contract.md). It describes source behavior and current desktop implementation; it does not claim native runtime validation. Ora Desktop exposes only sign-in/server-profile management and time tracking; all other product workflows remain web-only.
+Source review date: 2026-11-04. This inventory maps the current web UI to the approved reduced desktop scope in [`desktop-release-checklist.md`](desktop-release-checklist.md) and the existing API contract in [`desktop-security-contract.md`](desktop-security-contract.md). It describes source behavior and current desktop implementation; it does not claim native runtime validation. Ora Desktop exposes sign-in/server-profile management, time tracking, and read-only teams; all other product workflows remain web-only.
 
 ## Pages and navigation
 
@@ -12,7 +12,7 @@ Source review date: 2026-10-26. This inventory maps the current web UI to the ap
 | `/timesheet` My hours | All authenticated roles | Web only | Not exposed in desktop; web retains own-entry list and manual create/edit/delete. |
 | `/projects` | All authenticated roles | Web only | Project creation, metadata, and member assignment remain web features under the web role policy. |
 | `/manage/projects` (legacy/management view) | Owner/Admin controls; some project operations available to all roles from `/projects` | Web only | Project management remains in the web app. |
-| `/manage/teams` | Owner/Admin in web navigation; teams have read-only desktop API scope | Web only | Team workflows are not exposed in desktop; API restrictions remain in place. |
+| `/manage/teams` | Owner/Admin in web navigation; teams have read-only desktop API scope | In scope, read-only | The Tauri Teams tab reads only `GET /api/teams`, showing membership-scoped teams, descriptions, and active member names. Team creation, editing, and deletion remain unavailable. |
 | `/manage/people` | Owner/Admin | Excluded | People administration, activation/deactivation, and password reset are expressly forbidden to desktop sessions. |
 | `/manage/report` | Owner/Admin | Excluded | Reports and cross-user/project/team filtering are not available to desktop sessions. |
 | `/manage/backups` | Owner | Excluded | No data backup/export from desktop. |
@@ -46,7 +46,7 @@ Source review date: 2026-10-26. This inventory maps the current web UI to the ap
 
 ## Desktop UI architecture
 
-The standalone Tauri panel contains only login, server-profile management, and its inline time-tracking workflow. Projects and My hours React views and adapters are not mounted in the desktop bundle. This UI restriction does not broaden the desktop API allowlist; web routes and role checks remain unchanged.
+The standalone Tauri panel contains login, server-profile management, inline time tracking, and a localized read-only Teams tab. Teams data is loaded only through membership-scoped `GET /api/teams`; team mutations are not exposed. Projects and My hours React views and adapters are not mounted in the desktop bundle. These UI boundaries do not broaden the desktop API allowlist; web routes and role checks remain unchanged.
 
 ## Shared UI architecture decision
 

@@ -197,6 +197,7 @@ The in-app complete Excel archive is Owner-only. For a consistent offline SQLite
 | `PASSWORD_HASH_ROUNDS` | Password hashing cost | `10` |
 | `NEXT_PUBLIC_APP_NAME` | Web app name | `Ora` |
 | `NEXT_PUBLIC_APP_TAGLINE`, `NEXT_PUBLIC_APP_DESCRIPTION` | Client-visible product copy | Optional; branding only. |
+| `NEXT_PUBLIC_DESKTOP_APP_VERSION` | Ora Desktop version included in the client release | Defaults to `2.0.0`; keep aligned with `src-tauri/tauri.conf.json`. |
 | `NEXT_PUBLIC_APP_LOGO_LIGHT`, `NEXT_PUBLIC_APP_LOGO_DARK` | Custom web logos | Optional. Put files only in `public/custom/` and use `/custom/...` paths. If one is set, it is used in both modes. |
 | `NEXT_PUBLIC_DEFAULT_THEME`, `NEXT_PUBLIC_ORA_THEMES` | Initial theme and exposed light presets | Default theme is `ora-default`; additional presets are `ora-blue`, `ora-green`, `ora-purple`, `ora-orange`. Dark mode is also available. |
 | `NEXT_PUBLIC_THEME_*_LABEL`, `NEXT_PUBLIC_THEME_*_COLOR` | Theme names and swatches | Optional presentation settings. |
@@ -274,7 +275,9 @@ For recovery or maintenance, `uninstall.cmd` must be run as Administrator. It as
 
 ## Ora Desktop preview
 
-Ora Desktop is an early Windows companion for signing in to Ora servers, saving named server profiles, and tracking time. Its desktop workflows are deliberately narrower than the web app: it does not provide Projects management, My hours, reports, backups, account administration, or other management screens. Desktop session credentials are intended to be isolated per server origin in Windows Credential Manager, and its API client is constrained to an allowlist.
+Ora Desktop is an early Windows companion for signing in to Ora servers, saving named server profiles, and tracking time. Its desktop workflows are deliberately narrower than the web app: it does not provide Projects management, My hours, reports, backups, account administration, or other management screens. Desktop session credentials are intended to be isolated per server origin in Windows Credential Manager, and its API client is constrained to an allowlist. It includes "Read-only Teams" access (name, description, and active members).
+
+Desktop releases are surfaced in the authenticated web app as a manual download notice, separate from Ora server updates. If GitHub release information cannot be reached, Ora shows a localized status message and remains usable. SHA-256 checksums are hidden by default and can be revealed by selecting the information icon. Set `NEXT_PUBLIC_DESKTOP_APP_VERSION` to the desktop version packaged with the client; it defaults to `2.0.0` and should be kept in sync with the Tauri release version.
 
 > **Preview warning:** native Windows/WebView behavior, Credential Manager isolation, installer lifecycle, accessibility, and two-server interactive use have not all been verified. Do not distribute the preview as a production-ready client. See the [desktop guide](src-tauri/README.md) for safe local testing and the [release checklist](docs/desktop-release-checklist.md) for validation status. Ora Desktop is not installed or updated by the Ora server installer/updater.
 
@@ -318,6 +321,12 @@ For support requests, include the Ora version, operating system, installation ty
 - Maintain independent, verified backups and test recovery using a disposable copy.
 - Keep the app and operating system updated; review release notes and backup before upgrades.
 - Treat the Desktop preview as unverified for production use.
+
+### Desktop Security
+- **Credential Isolation:** The desktop client stores opaque session tokens in the OS-protected Windows Credential Manager, not in browser cookies or local storage. Tokens are isolated per server origin.
+- **Limited Scope:** The desktop API is restricted to an allowlist of operations (Time Tracking, Server Profile management, Read-only Teams).
+- **No Password Storage:** The desktop client never stores or persists user passwords.
+- **Network Trust:** HTTPS is preferred; remote HTTP requires explicit per-origin confirmation and is unencrypted.
 
 ## License
 
